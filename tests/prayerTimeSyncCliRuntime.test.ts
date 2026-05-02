@@ -104,10 +104,11 @@ test("production prayer sync runtime logs the fixed SDK doc path and ignores RES
   for (const path of state.paths) {
     assertNoRestStyleFirestorePath(path);
   }
-  assert.deepEqual(logs.slice(0, 3), [
-    "SYNC_RUNTIME_ENTRY: scripts/prayerTimes/syncPrayerTimes.ts",
-    "SYNC_DOC_PATH: prayerTimes/current",
-    "SYNC_ENV_TARGET_PATH: projects/test-project/databases/(default)/documents/prayerTimes/current",
-  ]);
-  assert.equal(logs.at(-1), "Prayer times synced to prayerTimes/current from aladhan");
+  assert.ok(logs.some((l) => l.includes("[Prayer Times Sync] Starting")), "should log sync start");
+  assert.ok(logs.some((l) => l.includes("provider: aladhan")), "should log provider");
+  assert.ok(logs.some((l) => l.includes("timezone: Europe/London")), "should log timezone");
+  assert.ok(logs.some((l) => l.includes("city: London")), "should log city");
+  assert.ok(logs.some((l) => l.includes("[Prayer Times Sync] Completed successfully")), "should log sync completion");
+  assert.ok(logs.some((l) => l.includes("savedTo: prayerTimes/current")), "should log saved path");
+  assert.ok(logs.some((l) => l.includes("source: aladhan")), "should log source");
 });

@@ -3,7 +3,7 @@ name: Prayer Times Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: "10 0 * * *"
+    - cron: "0 2 * * *"
       timezone: "Europe/London"
 
 permissions:

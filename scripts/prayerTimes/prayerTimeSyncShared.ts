@@ -1,6 +1,7 @@
 import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
 import type { PrayerTimesCurrent } from "../../src/types/display.ts";
 import type { PrayerTimeProviderResult } from "./prayerTimeProviderTypes.ts";
+import { validatePrayerTimesCurrent } from "./prayerTimesValidation.ts";
 
 function hasCompleteAutomaticTimes(providerResult: PrayerTimeProviderResult) {
   return providerResult.automaticTimes.today != null && providerResult.automaticTimes.tomorrow != null;
@@ -61,6 +62,16 @@ export function createPrayerTimeSyncRunner({
         }
 
         const nextValue = applySuccessfulProviderSync(current, providerResult);
+
+        const validation = validatePrayerTimesCurrent(nextValue);
+        if (!validation.valid) {
+          const error = new Error(
+            `Prayer times validation failed before Firestore write:\n  ${validation.errors.join("\n  ")}`,
+          );
+          logError("Prayer times validation failed.", error);
+          throw error;
+        }
+
         await saveCurrent(nextValue);
         return nextValue;
       } catch (error) {

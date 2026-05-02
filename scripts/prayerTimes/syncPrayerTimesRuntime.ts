@@ -6,6 +6,7 @@ import {
   type PrayerTimeSyncRuntimeOptions,
 } from "../../functions/src/prayerTimeSyncService.ts";
 import type { PrayerTimesCurrent } from "../../src/types/display.ts";
+import { describePrayerTimesForLog } from "./prayerTimesValidation.ts";
 
 interface FirestoreDocumentSnapshotLike {
   data: () => unknown;
@@ -32,9 +33,6 @@ export interface RunProductionPrayerTimeSyncOptions {
   readRuntimeOptions?: (env: NodeJS.ProcessEnv) => PrayerTimeSyncRuntimeOptions;
 }
 
-export const PRODUCTION_PRAYER_TIME_SYNC_RUNTIME_ENTRY =
-  "scripts/prayerTimes/syncPrayerTimes.ts";
-
 export async function runProductionPrayerTimeSync({
   db,
   env = process.env,
@@ -50,23 +48,42 @@ export async function runProductionPrayerTimeSync({
   readRuntimeOptions = readPrayerTimeSyncRuntimeOptions,
 }: RunProductionPrayerTimeSyncOptions) {
   const runtimeOptions = readRuntimeOptions(env);
+  const { providerConfig, offsets } = runtimeOptions;
   const ref = db.doc("prayerTimes/current");
+  const executionTime = now ?? new Date();
 
-  logInfo(`SYNC_RUNTIME_ENTRY: ${PRODUCTION_PRAYER_TIME_SYNC_RUNTIME_ENTRY}`);
-  logInfo("SYNC_DOC_PATH: prayerTimes/current");
-  logInfo(`SYNC_ENV_TARGET_PATH: ${env.PRAYER_SYNC_TARGET_PATH ?? "unset"}`);
+  logInfo("[Prayer Times Sync] Starting");
+  logInfo(`  provider: aladhan`);
+  logInfo(`  city: ${providerConfig.city}`);
+  logInfo(`  country: ${providerConfig.country}`);
+  logInfo(`  timezone: ${providerConfig.timezone}`);
+  logInfo(`  method: ${providerConfig.method}`);
+  logInfo(
+    `  offsets: fajr=${offsets.fajr}, sunrise=${offsets.sunrise}, dhuhr=${offsets.dhuhr}, asr=${offsets.asr}, maghrib=${offsets.maghrib}, isha=${offsets.isha}`,
+  );
+
+  const londonDateFormatter = new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
+  logInfo(`  executionLocalDate: ${londonDateFormatter.format(executionTime)} (Europe/London)`);
+  logInfo(`  executionUtc: ${executionTime.toISOString()}`);
+  logInfo("  docPath: prayerTimes/current");
 
   const providerResultLoader =
     fetchProviderResult ??
     (() =>
       createAladhanProvider().fetchAutomaticTimes(
-        runtimeOptions.providerConfig,
-        runtimeOptions.offsets,
+        providerConfig,
+        offsets,
         fetchImpl,
-        now,
+        executionTime,
       ));
 
-  const result = await createPrayerTimeSyncRunner({
+  const runnerResult = await createPrayerTimeSyncRunner({
     fetchCurrent: async () => {
       const snapshot = await ref.get();
       return snapshot.exists ? snapshot.data() : null;
@@ -78,7 +95,10 @@ export async function runProductionPrayerTimeSync({
     logError,
   }).run();
 
-  logInfo(`Prayer times synced to prayerTimes/current from ${result.providerSource ?? "unknown"}`);
+  logInfo(describePrayerTimesForLog(runnerResult, providerConfig.timezone, runnerResult.providerSource ?? "unknown"));
+  logInfo("[Prayer Times Sync] Completed successfully");
+  logInfo(`  savedTo: prayerTimes/current`);
+  logInfo(`  source: ${runnerResult.providerSource ?? "unknown"}`);
 
-  return result;
+  return runnerResult;
 }
