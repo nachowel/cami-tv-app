@@ -1,10 +1,8 @@
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
+import { cert, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import {
-  getPrayerTimeSyncProjectId,
-} from "../../functions/src/prayerTimeSyncService.ts";
+import { readFileSync } from "node:fs";
 import { runProductionPrayerTimeSync } from "./syncPrayerTimesRuntime.ts";
 
 function printHelp() {
@@ -17,17 +15,40 @@ function shouldPrintHelp(args: string[]) {
   return args.includes("--help");
 }
 
+function loadServiceAccount() {
+  const credentialsPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+
+  if (!credentialsPath) {
+    throw new Error(
+      "GOOGLE_APPLICATION_CREDENTIALS environment variable is not set. " +
+        "Point it to your Firebase service account JSON file.",
+    );
+  }
+
+  const raw = readFileSync(credentialsPath, "utf8");
+  const parsed = JSON.parse(raw) as { client_email: string; private_key: string };
+
+  return {
+    clientEmail: parsed.client_email,
+    privateKey: parsed.private_key,
+  };
+}
+
 export async function syncPrayerTimes(args = process.argv.slice(2), env = process.env) {
+  console.log("PROJECT_ID_ENV:", env.FIREBASE_PROJECT_ID ?? "unset");
+  console.log("GOOGLE_APPLICATION_CREDENTIALS:", env.GOOGLE_APPLICATION_CREDENTIALS ?? "unset");
+
   if (shouldPrintHelp(args)) {
     printHelp();
     return;
   }
 
+  const { clientEmail, privateKey } = loadServiceAccount();
+
   const app =
     getApps()[0] ??
     initializeApp({
-      credential: applicationDefault(),
-      projectId: getPrayerTimeSyncProjectId(env) ?? undefined,
+      credential: cert({ clientEmail, privateKey }),
     });
   const db = getFirestore(app);
 

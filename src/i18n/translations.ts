@@ -10,7 +10,6 @@ export const translations = {
     daily_ayah_source: "Surah An-Nisa 31",
     daily_ayah_translation:
       "If you avoid the major sins forbidden to you, We will remove your lesser sins and admit you to a noble entrance.",
-    date: "Friday, 1 May 2026",
     donation_support_message: "Your donations help keep our mosque services running.",
     hijri: "13 Dhul Qadah 1447",
     islamic_community: "Islamic Community",
@@ -39,7 +38,6 @@ export const translations = {
     daily_ayah_source: "Nisâ Suresi 31. Ayet",
     daily_ayah_translation:
       "Eğer size yasaklanan günahların büyüklerinden kaçınırsanız, sizin küçük günahlarınızı örteriz ve sizi güzel bir yere koyarız.",
-    date: "Cuma, 1 Mayıs 2026",
     donation_support_message: "Cami faaliyetlerimizin devamı için bağışlarınız çok kıymetli.",
     hijri: "13 Dhul Qadah 1447",
     islamic_community: "Islamic Community",

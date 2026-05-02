@@ -27,6 +27,21 @@ function formatClockTime(now: Date, language: DisplayLanguage) {
   });
 }
 
+function formatClockDate(now: Date, language: DisplayLanguage) {
+  const locale = language === "tr" ? "tr-TR" : "en-GB";
+  const londonDay = now.toLocaleDateString(locale, {
+    weekday: "long",
+    timeZone: "Europe/London",
+  });
+  const londonDateStr = now.toLocaleDateString(locale, {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "Europe/London",
+  });
+  return `${londonDay}, ${londonDateStr}`;
+}
+
 function localizeCountdown(countdownText: string, language: DisplayLanguage) {
   if (language === "tr") {
     return countdownText
@@ -51,12 +66,13 @@ export function ClockPanel({ language, now, nextPrayerName, countdownMs }: Clock
   const nextPrayerLabel = t(prayerLabelKeys[nextPrayerName]);
   const countdownText = localizeCountdown(formatCountdown(countdownMs), language);
   const countdownLabel = getCountdownLabel(language, nextPrayerLabel);
+  const dateStr = formatClockDate(now, language);
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col items-center justify-start overflow-hidden rounded-2xl bg-[#fffdf7] px-2 pb-2 pt-1 text-center 2xl:px-3 2xl:pb-3 2xl:pt-2">
       <div>
         <p className="text-xl font-black uppercase tracking-[0.08em] text-emerald-800 2xl:text-4xl">
-          {t("date")}
+          {dateStr}
         </p>
         <p className="mt-1 text-base font-medium text-slate-600 2xl:mt-2 2xl:text-3xl">
           {t("hijri")}
