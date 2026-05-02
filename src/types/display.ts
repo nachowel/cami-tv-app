@@ -68,6 +68,7 @@ export interface PrayerTimesCurrent {
   manualOverride: boolean;
   offsets: PrayerTimeOffsets;
   automaticTimes: PrayerTimesAutomaticSnapshot | null;
+  validationStatus?: "valid";
 }
 
 export interface DailyContentCurrent {

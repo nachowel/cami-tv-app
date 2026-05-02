@@ -158,6 +158,7 @@ test("saved Firestore document has validationStatus valid and all backward-compa
   assert.equal(saved.effectiveSource, "aladhan");
   assert.equal(saved.providerSource, "aladhan");
   assert.equal(saved.manualOverride, false);
+  assert.equal(saved.validationStatus, "valid", "validationStatus must be 'valid' in Firestore document");
 });
 
 test("describePrayerTimesForLog includes docPath when provided", () => {

@@ -72,8 +72,13 @@ export function createPrayerTimeSyncRunner({
           throw error;
         }
 
-        await saveCurrent(nextValue);
-        return nextValue;
+        const validatedValue: PrayerTimesCurrent = {
+          ...nextValue,
+          validationStatus: "valid",
+        };
+
+        await saveCurrent(validatedValue);
+        return validatedValue;
       } catch (error) {
         logError("Aladhan prayer time sync failed.", error);
         throw error;
