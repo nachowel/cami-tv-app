@@ -50,7 +50,7 @@ export function TvDisplayLayout({ data }: TvDisplayLayoutProps) {
 
         <aside className="min-h-0">
           <PrayerTimesPanel
-            prayerTimes={data.prayerTimes.today}
+            prayerTimes={data.prayerTimes}
             language={language}
             highlightedPrayer={prayerMoment.nextPrayer.name}
           />

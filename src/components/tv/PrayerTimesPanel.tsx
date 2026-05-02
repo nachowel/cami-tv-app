@@ -1,10 +1,10 @@
 import { useTranslation } from "../../i18n/useTranslation";
-import type { DisplayLanguage, PrayerTimesForDay } from "../../types/display";
+import type { DisplayLanguage, PrayerTimesCurrent, PrayerTimesForDay } from "../../types/display";
 import type { TranslationKey } from "../../i18n/translations";
 import type { PrayerName } from "../../utils/prayerTimes";
 
 interface PrayerTimesPanelProps {
-  prayerTimes: PrayerTimesForDay;
+  prayerTimes: PrayerTimesCurrent;
   language: DisplayLanguage;
   highlightedPrayer: PrayerName;
 }
@@ -20,8 +20,16 @@ const prayerLabels: Array<[keyof PrayerTimesForDay, TranslationKey]> = [
 
 const prayerIcons = ["☾", "☀", "☀", "◒", "◐", "☾"];
 
+function formatUpdateTime(isoDateTime: string): string {
+  const match = isoDateTime.match(/T(\d{2}:\d{2}):/);
+  return match ? match[1] : "";
+}
+
 export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer }: PrayerTimesPanelProps) {
   const { t } = useTranslation(language);
+  const today = prayerTimes.today;
+  const sourceLabel = prayerTimes.effectiveSource === "manual" ? "Manual" : "Aladhan";
+  const updateTime = formatUpdateTime(prayerTimes.updated_at);
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-emerald-900/10 bg-white px-5 py-5 shadow-[0_14px_40px_rgba(21,54,35,0.13)] 2xl:px-8 2xl:py-8">
@@ -54,14 +62,15 @@ export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer }: P
                 {t(labelKey)}
               </p>
               <p className="font-mono text-2xl font-black tracking-normal 2xl:text-5xl">
-                {prayerTimes[key]}
+                {today[key]}
               </p>
             </div>
           );
         })}
       </div>
-      <p className="mt-2 truncate text-center text-xs font-medium text-slate-500 2xl:mt-5 2xl:text-lg">
-        {t("prayer_source_note")}
+      <p className="mt-2 truncate text-center text-[0.65rem] font-medium tracking-wide text-slate-400 2xl:mt-4 2xl:text-xs">
+        {sourceLabel}
+        {updateTime ? ` · ${updateTime}` : ""}
       </p>
     </section>
   );

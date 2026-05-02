@@ -7,6 +7,7 @@ import type {
   PrayerTimesCurrent,
   TickerCurrent,
 } from "../../types/display.ts";
+import { isValidPrayerTimesCurrent } from "../../utils/prayerTimeValidation.ts";
 
 export interface TvFirestoreBootstrap {
   announcements: Announcement[] | null;
@@ -136,6 +137,15 @@ export function startTvDisplaySync({
     section: K,
     value: TvFirestoreBootstrap[K],
   ) {
+    if (section === "prayerTimes") {
+      if (!isValidPrayerTimesCurrent(value)) {
+        if (isDevelopment) {
+          logError?.(section, new Error("Invalid prayerTimes snapshot from Firestore; keeping last valid state"));
+        }
+        return;
+      }
+    }
+
     bootstrap[section] = value;
     emit();
   }
