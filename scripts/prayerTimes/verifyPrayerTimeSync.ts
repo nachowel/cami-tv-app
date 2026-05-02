@@ -6,7 +6,6 @@ import { getFirestore } from "firebase-admin/firestore";
 import {
   getPrayerTimeSyncProjectId,
   readPrayerTimeSyncRuntimeOptions,
-  runPrayerTimeSync,
 } from "../../functions/src/prayerTimeSyncService.ts";
 import { mockDisplayData } from "../../src/data/mockDisplayData.ts";
 import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
@@ -141,18 +140,17 @@ async function verifyPrayerTimeSync() {
 
   const automaticBefore = createVerificationSeedValue(false);
   await ref.set(automaticBefore);
-  const automaticResult = await runPrayerTimeSync({
-    db,
+  const automaticResult = await createPrayerTimeSyncRunner({
+    fetchCurrent: async () => (await ref.get()).data() ?? null,
+    fetchProviderResult: async () =>
+      provider.fetchAutomaticTimes(runtimeOptions.providerConfig, runtimeOptions.offsets),
+    saveCurrent: async (value) => {
+      await ref.set(value);
+    },
     logError(message, error) {
       console.error(message, error);
     },
-    logInfo(message) {
-      console.log(message);
-    },
-    offsets: runtimeOptions.offsets,
-    providerConfig: runtimeOptions.providerConfig,
-    targetPath: FIRESTORE_PATHS.prayerTimesSyncTest,
-  });
+  }).run();
   const automaticAfter = await readCurrent(ref);
   assertPrayerTimeSyncVerificationAppliedAutomaticFields({
     after: automaticAfter,
@@ -167,18 +165,17 @@ async function verifyPrayerTimeSync() {
 
   const manualBefore = createVerificationSeedValue(true);
   await ref.set(manualBefore);
-  const manualResult = await runPrayerTimeSync({
-    db,
+  const manualResult = await createPrayerTimeSyncRunner({
+    fetchCurrent: async () => (await ref.get()).data() ?? null,
+    fetchProviderResult: async () =>
+      provider.fetchAutomaticTimes(runtimeOptions.providerConfig, runtimeOptions.offsets),
+    saveCurrent: async (value) => {
+      await ref.set(value);
+    },
     logError(message, error) {
       console.error(message, error);
     },
-    logInfo(message) {
-      console.log(message);
-    },
-    offsets: runtimeOptions.offsets,
-    providerConfig: runtimeOptions.providerConfig,
-    targetPath: FIRESTORE_PATHS.prayerTimesSyncTest,
-  });
+  }).run();
   const manualAfter = await readCurrent(ref);
   assertPrayerTimeSyncVerificationPreservedManualFields({
     before: manualBefore,

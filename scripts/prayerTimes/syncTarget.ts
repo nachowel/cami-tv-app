@@ -1,4 +1,4 @@
-import { FIRESTORE_PATHS, normalizeFirestoreDocumentPath } from "../../src/shared/firestorePaths.ts";
+import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 
 export interface PrayerTimeSyncArguments {
   allowTestWrite: boolean;
@@ -51,9 +51,7 @@ export function resolvePrayerTimeSyncTargetPath({
 }: ResolvePrayerTimeSyncTargetPathOptions) {
   const trimmedTargetPath = targetPath?.trim();
 
-  return trimmedTargetPath
-    ? normalizeFirestoreDocumentPath(trimmedTargetPath)
-    : FIRESTORE_PATHS.prayerTimesCurrent;
+  return trimmedTargetPath ? trimmedTargetPath : FIRESTORE_PATHS.prayerTimesCurrent;
 }
 
 export function resolvePrayerTimeSyncVerificationWriteAllowance({

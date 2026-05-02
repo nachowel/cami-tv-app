@@ -1,7 +1,6 @@
 import process from "node:process";
 import { applicationDefault, getApps, initializeApp } from "firebase-admin/app";
 import { getFirestore } from "firebase-admin/firestore";
-import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 import {
   getPrayerTimeSyncProjectId,
   readPrayerTimeSyncRuntimeOptions,
@@ -43,7 +42,6 @@ async function syncPrayerTimes() {
     },
     offsets: runtimeOptions.offsets,
     providerConfig: runtimeOptions.providerConfig,
-    targetPath: FIRESTORE_PATHS.prayerTimesCurrent,
   });
 }
 
