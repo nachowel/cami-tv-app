@@ -130,3 +130,28 @@ test("runPrayerTimeSync performs no writes and logs a clear error when the provi
   assert.deepEqual(infoLogs, []);
   assert.deepEqual(errorLogs, ["Aladhan prayer time sync failed.:aladhan-unavailable"]);
 });
+
+test("runPrayerTimeSync normalizes a REST-style target path before calling Firestore doc()", async () => {
+  const infoLogs: string[] = [];
+  const { db, state } = createFakeDb({
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+    effectiveSource: "manual",
+    providerSource: null,
+    method: null,
+    fetchedAt: null,
+    automaticTimes: null,
+  });
+
+  await runPrayerTimeSync({
+    db,
+    fetchProviderResult: async () => providerResult,
+    logInfo(message) {
+      infoLogs.push(message);
+    },
+    targetPath: "projects/icmg-tvapp/databases/(default)/documents/prayerTimes/current",
+  });
+
+  assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.prayerTimesCurrent]);
+  assert.match(infoLogs[0] ?? "", /Prayer times synced to prayerTimes\/current/);
+});

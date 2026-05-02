@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { FIRESTORE_PATHS } from "../src/shared/firestorePaths.ts";
+import { FIRESTORE_PATHS, normalizeFirestoreDocumentPath } from "../src/shared/firestorePaths.ts";
 import {
   parsePrayerTimeSyncArguments,
   resolvePrayerTimeSyncTargetPath,
@@ -20,6 +20,22 @@ test("resolvePrayerTimeSyncTargetPath uses an explicit test path override", () =
   });
 
   assert.equal(result, FIRESTORE_PATHS.prayerTimesSyncTest);
+});
+
+test("normalizeFirestoreDocumentPath strips a REST-style Firestore document prefix", () => {
+  const result = normalizeFirestoreDocumentPath(
+    "projects/icmg-tvapp/databases/(default)/documents/prayerTimes/current",
+  );
+
+  assert.equal(result, FIRESTORE_PATHS.prayerTimesCurrent);
+});
+
+test("resolvePrayerTimeSyncTargetPath normalizes a REST-style Firestore document path to the SDK path", () => {
+  const result = resolvePrayerTimeSyncTargetPath({
+    targetPath: "projects/icmg-tvapp/databases/(default)/documents/prayerTimes/current",
+  });
+
+  assert.equal(result, FIRESTORE_PATHS.prayerTimesCurrent);
 });
 
 test("resolvePrayerTimeSyncVerificationWriteAllowance blocks test writes without the explicit allow flag", () => {

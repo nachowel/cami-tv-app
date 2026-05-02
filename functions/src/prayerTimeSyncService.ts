@@ -6,7 +6,10 @@ import type {
   PrayerTimeProviderResult,
 } from "../../scripts/prayerTimes/prayerTimeProviderTypes.ts";
 import { createPrayerTimeSyncRunner } from "../../scripts/prayerTimes/prayerTimeSyncShared.ts";
-import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
+import {
+  FIRESTORE_PATHS,
+  normalizeFirestoreDocumentPath,
+} from "../../src/shared/firestorePaths.ts";
 import type { PrayerTimeOffsets, PrayerTimesCurrent } from "../../src/types/display.ts";
 
 function getTrimmedEnv(name: string, env: NodeJS.ProcessEnv) {
@@ -106,6 +109,7 @@ export async function runPrayerTimeSync({
   providerConfig,
   targetPath = FIRESTORE_PATHS.prayerTimesCurrent,
 }: RunPrayerTimeSyncOptions) {
+  const firestorePath = normalizeFirestoreDocumentPath(targetPath);
   const loadProviderResult =
     fetchProviderResult ??
     (() => {
@@ -120,18 +124,18 @@ export async function runPrayerTimeSync({
 
   const result = await createPrayerTimeSyncRunner({
     fetchCurrent: async () => {
-      const snapshot = await db.doc(targetPath).get();
+      const snapshot = await db.doc(firestorePath).get();
       return snapshot.exists ? snapshot.data() : null;
     },
     fetchProviderResult: loadProviderResult,
     saveCurrent: async (value) => {
-      await db.doc(targetPath).set(value);
+      await db.doc(firestorePath).set(value);
     },
     logError,
   }).run();
 
   logInfo(
-    `Prayer times synced to ${targetPath} from ${result.providerSource ?? "unknown"} with effective source ${result.effectiveSource}.`,
+    `Prayer times synced to ${firestorePath} from ${result.providerSource ?? "unknown"} with effective source ${result.effectiveSource}.`,
   );
 
   return result;
