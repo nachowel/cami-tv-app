@@ -95,9 +95,9 @@ export async function runProductionPrayerTimeSync({
     logError,
   }).run();
 
-  logInfo(describePrayerTimesForLog(runnerResult, providerConfig.timezone, runnerResult.providerSource ?? "unknown"));
+  logInfo(describePrayerTimesForLog(runnerResult, providerConfig.timezone, runnerResult.providerSource ?? "unknown", "prayerTimes/current"));
   logInfo("[Prayer Times Sync] Completed successfully");
-  logInfo(`  savedTo: prayerTimes/current`);
+  logInfo(`  docPath: prayerTimes/current`);
   logInfo(`  source: ${runnerResult.providerSource ?? "unknown"}`);
 
   return runnerResult;

@@ -3,6 +3,12 @@ name: Prayer Times Sync
 on:
   workflow_dispatch:
   schedule:
+    # UTC cron — GitHub Actions always interprets the cron expression in UTC.
+    # The timezone field only affects how the "scheduled" trigger time is displayed
+    # in the GitHub UI; the actual job always runs at the UTC time specified.
+    # So "0 2 * * *" means 02:00 UTC every day:
+    #   - Winter (GMT): 02:00 UTC = 02:00 UK local
+    #   - Summer (BST, +1h offset): 02:00 UTC = 03:00 UK local
     - cron: "0 2 * * *"
       timezone: "Europe/London"
 

@@ -139,9 +139,13 @@ export function describePrayerTimesForLog(
   prayerTimes: PrayerTimesCurrent,
   timezone: string,
   providerSource: string,
+  docPath?: string,
 ): string {
   const lines: string[] = [];
   lines.push(`[Prayer Times Sync Payload]`);
+  if (docPath) {
+    lines.push(`  docPath: ${docPath}`);
+  }
   lines.push(`  date: ${prayerTimes.date}`);
   lines.push(`  timezone: ${timezone}`);
   lines.push(`  source: ${providerSource}`);
