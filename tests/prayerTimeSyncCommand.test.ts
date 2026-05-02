@@ -16,8 +16,10 @@ test("syncPrayerTimes help path works without Firebase credentials", () => {
   assert.equal(result.status, 0);
   assert.match(
     result.stdout,
-    /Usage: npm run prayer-times:sync -- \[--target-path <path>\] \[--allow-test-write\]/,
+    /Usage: npm run prayer-times:sync/,
   );
   assert.match(result.stdout, /Default target path is prayerTimes\/current\./);
-  assert.match(result.stdout, /PRAYER_SYNC_ALLOW_TEST_WRITE=true/);
+  assert.doesNotMatch(result.stdout, /target-path/);
+  assert.doesNotMatch(result.stdout, /PRAYER_SYNC_TARGET_PATH/);
+  assert.doesNotMatch(result.stdout, /PRAYER_SYNC_ALLOW_TEST_WRITE=true/);
 });
