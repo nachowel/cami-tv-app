@@ -90,3 +90,155 @@ test("syncPrayerTimes accepts a plain project ID and logs debug env values befor
     try { require("node:fs").rmdirSync(tmpDir); } catch { /* ignore */ }
   }
 });
+
+test("syncPrayerTimes throws clear error when service account JSON is missing project_id", () => {
+  const tmpDir = mkdtempSync(join(tmpdir(), "prayer-sync-test-"));
+  const credPath = join(tmpDir, "service-account.json");
+  writeFileSync(
+    credPath,
+    JSON.stringify({
+      type: "service_account",
+      client_email: "test@icmg-tvapp.iam.gserviceaccount.com",
+      private_key: VALID_SERVICE_ACCOUNT.private_key,
+    }),
+  );
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "scripts/prayerTimes/syncPrayerTimes.ts",
+        "--help",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GOOGLE_APPLICATION_CREDENTIALS: credPath,
+          FIREBASE_PROJECT_ID: "icmg-tvapp",
+        },
+      },
+    );
+
+    assert.notEqual(result.status, 0);
+    const output = result.stdout + result.stderr;
+    assert.match(output, /project_id.*missing|missing.*project_id/i);
+  } finally {
+    try { unlinkSync(credPath); } catch { /* ignore */ }
+    try { require("node:fs").rmdirSync(tmpDir); } catch { /* ignore */ }
+  }
+});
+
+test("syncPrayerTimes throws clear error when service account JSON is missing client_email", () => {
+  const tmpDir = mkdtempSync(join(tmpdir(), "prayer-sync-test-"));
+  const credPath = join(tmpDir, "service-account.json");
+  writeFileSync(
+    credPath,
+    JSON.stringify({
+      type: "service_account",
+      project_id: "icmg-tvapp",
+      private_key: VALID_SERVICE_ACCOUNT.private_key,
+    }),
+  );
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "scripts/prayerTimes/syncPrayerTimes.ts",
+        "--help",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GOOGLE_APPLICATION_CREDENTIALS: credPath,
+        },
+      },
+    );
+
+    assert.notEqual(result.status, 0);
+    const output = result.stdout + result.stderr;
+    assert.match(output, /client_email.*missing|missing.*client_email/i);
+  } finally {
+    try { unlinkSync(credPath); } catch { /* ignore */ }
+    try { require("node:fs").rmdirSync(tmpDir); } catch { /* ignore */ }
+  }
+});
+
+test("syncPrayerTimes throws clear error when service account JSON is missing private_key", () => {
+  const tmpDir = mkdtempSync(join(tmpdir(), "prayer-sync-test-"));
+  const credPath = join(tmpDir, "service-account.json");
+  writeFileSync(
+    credPath,
+    JSON.stringify({
+      type: "service_account",
+      project_id: "icmg-tvapp",
+      client_email: "test@icmg-tvapp.iam.gserviceaccount.com",
+    }),
+  );
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "scripts/prayerTimes/syncPrayerTimes.ts",
+        "--help",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GOOGLE_APPLICATION_CREDENTIALS: credPath,
+        },
+      },
+    );
+
+    assert.notEqual(result.status, 0);
+    const output = result.stdout + result.stderr;
+    assert.match(output, /private_key.*missing|missing.*private_key/i);
+  } finally {
+    try { unlinkSync(credPath); } catch { /* ignore */ }
+    try { require("node:fs").rmdirSync(tmpDir); } catch { /* ignore */ }
+  }
+});
+
+test("syncPrayerTimes uses project_id from service account JSON, not FIREBASE_PROJECT_ID env", () => {
+  const tmpDir = mkdtempSync(join(tmpdir(), "prayer-sync-test-"));
+  const credPath = join(tmpDir, "service-account.json");
+  writeFileSync(credPath, JSON.stringify(VALID_SERVICE_ACCOUNT));
+
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        "--experimental-strip-types",
+        "scripts/prayerTimes/syncPrayerTimes.ts",
+        "--help",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: {
+          ...process.env,
+          GOOGLE_APPLICATION_CREDENTIALS: credPath,
+          FIREBASE_PROJECT_ID: "projects/icmg-tvapp/databases/(default)",
+        },
+      },
+    );
+
+    assert.equal(result.status, 0);
+    const output = result.stdout + result.stderr;
+    assert.match(output, /PROJECT_ID_ENV:.*projects\//);
+    assert.match(output, /GOOGLE_APPLICATION_CREDENTIALS:.*service-account\.json/);
+  } finally {
+    try { unlinkSync(credPath); } catch { /* ignore */ }
+    try { require("node:fs").rmdirSync(tmpDir); } catch { /* ignore */ }
+  }
+});

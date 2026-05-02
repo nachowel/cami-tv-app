@@ -26,11 +26,34 @@ function loadServiceAccount() {
   }
 
   const raw = readFileSync(credentialsPath, "utf8");
-  const parsed = JSON.parse(raw) as { client_email: string; private_key: string };
+  const parsed = JSON.parse(raw) as Record<string, unknown>;
+
+  const projectId = parsed.project_id;
+  if (typeof projectId !== "string" || projectId.length === 0) {
+    throw new Error(
+      "Service account JSON is missing a valid \"project_id\" string field. " +
+        "Ensure your service account file contains \"project_id\" with a non-empty string value.",
+    );
+  }
+
+  const clientEmail = parsed.client_email;
+  if (typeof clientEmail !== "string" || clientEmail.length === 0) {
+    throw new Error(
+      "Service account JSON is missing a valid \"client_email\" string field.",
+    );
+  }
+
+  const privateKey = parsed.private_key;
+  if (typeof privateKey !== "string" || privateKey.length === 0) {
+    throw new Error(
+      "Service account JSON is missing a valid \"private_key\" string field.",
+    );
+  }
 
   return {
-    clientEmail: parsed.client_email,
-    privateKey: parsed.private_key,
+    projectId,
+    clientEmail,
+    privateKey,
   };
 }
 
@@ -38,17 +61,17 @@ export async function syncPrayerTimes(args = process.argv.slice(2), env = proces
   console.log("PROJECT_ID_ENV:", env.FIREBASE_PROJECT_ID ?? "unset");
   console.log("GOOGLE_APPLICATION_CREDENTIALS:", env.GOOGLE_APPLICATION_CREDENTIALS ?? "unset");
 
+  const { projectId, clientEmail, privateKey } = loadServiceAccount();
+
   if (shouldPrintHelp(args)) {
     printHelp();
     return;
   }
 
-  const { clientEmail, privateKey } = loadServiceAccount();
-
   const app =
     getApps()[0] ??
     initializeApp({
-      credential: cert({ clientEmail, privateKey }),
+      credential: cert({ projectId, clientEmail, privateKey }),
     });
   const db = getFirestore(app);
 
