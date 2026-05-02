@@ -1,0 +1,51 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+
+    // Public read: TV display reads these without authentication.
+    // Admin write: only authenticated users with admin: true custom claim.
+
+    match /settings/display {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /donation/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /prayerTimes/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /dailyContent/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /ticker/current {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /announcements/{announcementId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Deny all other access.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

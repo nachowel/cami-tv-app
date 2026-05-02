@@ -1,0 +1,59 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+import { mockDisplayData } from "../src/data/mockDisplayData.ts";
+import {
+  normalizePrayerTimesCurrent,
+  restoreEffectivePrayerTimesFromAutomatic,
+} from "../src/utils/prayerTimeDocument.ts";
+
+test("normalizePrayerTimesCurrent protects legacy documents by default", () => {
+  const result = normalizePrayerTimesCurrent({
+    date: "2026-05-01",
+    today: mockDisplayData.prayerTimes.today,
+    tomorrow: null,
+    updated_at: "2026-05-01T18:00:00Z",
+  });
+
+  assert.equal(result.manualOverride, true);
+  assert.equal(result.effectiveSource, "manual");
+  assert.equal(result.providerSource, null);
+  assert.deepEqual(result.offsets, {
+    fajr: 0,
+    sunrise: 0,
+    dhuhr: 0,
+    asr: 0,
+    maghrib: 0,
+    isha: 0,
+  });
+  assert.equal(result.automaticTimes, null);
+});
+
+test("restoreEffectivePrayerTimesFromAutomatic copies automatic times immediately when available", () => {
+  const result = restoreEffectivePrayerTimesFromAutomatic(
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: true,
+      effectiveSource: "manual",
+      automaticTimes: {
+        date: "2026-05-02",
+        today: {
+          fajr: "04:55",
+          sunrise: "05:33",
+          dhuhr: "12:58",
+          asr: "16:42",
+          maghrib: "20:18",
+          isha: "21:41",
+        },
+        tomorrow: null,
+      },
+    },
+    "2026-05-02T19:00:00.000Z",
+  );
+
+  assert.equal(result.manualOverride, false);
+  assert.equal(result.effectiveSource, "aladhan");
+  assert.equal(result.date, "2026-05-02");
+  assert.equal(result.today.fajr, "04:55");
+  assert.equal(result.updated_at, "2026-05-02T19:00:00.000Z");
+});

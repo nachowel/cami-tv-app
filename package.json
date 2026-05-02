@@ -1,0 +1,36 @@
+{
+  "name": "icmg-bexley-tv-display",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "admin:set-claim": "node --experimental-strip-types scripts/auth/setAdminClaim.ts",
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "prayer-times:sync": "node --experimental-strip-types scripts/prayerTimes/syncPrayerTimes.ts",
+    "prayer-times:verify-sync": "node --experimental-strip-types scripts/prayerTimes/verifyPrayerTimeSync.ts",
+    "seed:firestore": "node --experimental-strip-types scripts/firestore/seedFirestore.ts",
+    "test:unit": "node --experimental-strip-types --test tests/*.test.ts",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.0.0",
+    "firebase": "^12.12.1",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.6.1",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.4.20",
+    "firebase-admin": "^13.5.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17"
+  }
+}

@@ -1,0 +1,44 @@
+name: Prayer Times Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "10 0 * * *"
+      timezone: "Europe/London"
+
+permissions:
+  contents: read
+
+jobs:
+  sync-prayer-times:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-service-account.json
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Write Firebase service account credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync prayer times
+        run: npm run prayer-times:sync
+
+      - name: Remove Firebase service account credentials
+        if: always()
+        shell: bash
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

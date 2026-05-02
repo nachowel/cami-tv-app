@@ -1,0 +1,147 @@
+- generic [active] [ref=e1]:
+  - main [ref=e8]:
+    - generic [ref=e9]:
+      - paragraph [ref=e10]: Admin Panel
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - heading "ICMG Bexley" [level=1] [ref=e13]
+          - paragraph [ref=e14]: Signed in as nachowel@hotmail.com
+        - button "Sign out" [ref=e15] [cursor=pointer]
+      - paragraph [ref=e16]: Firebase Auth protects this route. Each section reads from Firestore when available and falls back to mock data until you explicitly save that section.
+      - paragraph [ref=e17]: Loading Firestore admin data. Mock data remains visible until Firestore data is ready.
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: Current mock snapshot
+        - generic [ref=e20]:
+          - paragraph [ref=e21]: "Language: en"
+          - paragraph [ref=e22]: "Theme: auto"
+          - paragraph [ref=e23]: "Announcements: 1"
+          - paragraph [ref=e24]: "Saved content type: ayah"
+          - paragraph [ref=e25]: "Saved Fajr: 06:44"
+      - generic [ref=e26]:
+        - generic [ref=e27]:
+          - generic [ref=e28]:
+            - heading "Language setting" [level=2] [ref=e29]
+            - paragraph [ref=e30]: Choose the active local admin language state. This is mock-only and does not persist anywhere.
+          - generic [ref=e31]:
+            - generic [ref=e32]:
+              - button "English" [ref=e33] [cursor=pointer]
+              - button "Türkçe" [ref=e34] [cursor=pointer]
+            - paragraph [ref=e35]: "Current local value: en"
+        - generic [ref=e36]:
+          - generic [ref=e37]:
+            - heading "Donation settings" [level=2] [ref=e38]
+            - paragraph [ref=e39]: Manage the weekly donation amount and the QR destination URL using local mock state only.
+          - generic [ref=e40]:
+            - generic [ref=e41]:
+              - generic [ref=e42]:
+                - text: Weekly donation amount
+                - generic [ref=e43]:
+                  - generic [ref=e44]: GBP
+                  - spinbutton "Weekly donation amount GBP" [ref=e45]: "750"
+              - generic [ref=e46]:
+                - text: Donation URL
+                - textbox "Donation URL" [ref=e47]:
+                  - /placeholder: https://example.org/donate
+                  - text: https://icmgbexley.org.uk/donate
+            - generic [ref=e48]:
+              - paragraph [ref=e49]: Changes stay on this screen until Firebase is added later.
+              - button "Save donation settings" [ref=e50] [cursor=pointer]
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - heading "Announcements" [level=2] [ref=e53]
+            - paragraph [ref=e54]: Create, edit, and remove bilingual announcements backed by Firestore for the live TV display.
+          - generic [ref=e55]:
+            - article [ref=e57]:
+              - generic [ref=e58]:
+                - generic [ref=e59]:
+                  - paragraph [ref=e60]: Active • Expires 2026-06-01
+                  - paragraph [ref=e61]: English
+                  - paragraph [ref=e62]: Jumu'ah prayer will be held at 13:15.
+                  - paragraph [ref=e63]: Türkçe
+                  - paragraph [ref=e64]: Cuma namazı 13:15'te kılınacaktır.
+                - generic [ref=e65]:
+                  - button "Edit" [ref=e66] [cursor=pointer]
+                  - button "Delete" [ref=e67] [cursor=pointer]
+            - button "Add announcement" [ref=e69] [cursor=pointer]
+            - generic [ref=e70]:
+              - generic [ref=e72]:
+                - heading "New announcement" [level=3] [ref=e73]
+                - paragraph [ref=e74]: "This form writes the bilingual announcement document directly to Firestore and updates `/tv` through the live announcements subscription."
+              - generic [ref=e75]:
+                - generic [ref=e76]:
+                  - text: English text
+                  - textbox "English text" [ref=e77]
+                - generic [ref=e78]:
+                  - text: Turkish text
+                  - textbox "Turkish text" [ref=e79]
+                - generic [ref=e80]:
+                  - generic [ref=e81]:
+                    - text: Expiry date
+                    - textbox "Expiry date" [ref=e82]
+                  - generic [ref=e83]:
+                    - checkbox "Active" [checked] [ref=e84]
+                    - generic [ref=e85]: Active
+              - button "Add announcement" [ref=e87] [cursor=pointer]
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - heading "Prayer times" [level=2] [ref=e90]
+            - paragraph [ref=e91]: Manual local inputs for the six daily time fields. These values do not change the TV route yet.
+          - generic [ref=e92]:
+            - generic [ref=e93]:
+              - generic [ref=e94]:
+                - text: Fajr / İmsak
+                - textbox "Fajr / İmsak" [ref=e95]: 06:44
+              - generic [ref=e96]:
+                - text: Sunrise / Güneş
+                - textbox "Sunrise / Güneş" [ref=e97]: 08:44
+              - generic [ref=e98]:
+                - text: Dhuhr / Öğle
+                - textbox "Dhuhr / Öğle" [ref=e99]: 12:47
+              - generic [ref=e100]:
+                - text: Asr / İkindi
+                - textbox "Asr / İkindi" [ref=e101]: 14:22
+              - generic [ref=e102]:
+                - text: Maghrib / Akşam
+                - textbox "Maghrib / Akşam" [ref=e103]: 16:41
+              - generic [ref=e104]:
+                - text: Isha / Yatsı
+                - textbox "Isha / Yatsı" [ref=e105]: 18:27
+            - button "Save prayer times" [ref=e107] [cursor=pointer]
+        - generic [ref=e108]:
+          - generic [ref=e109]:
+            - heading "Daily content" [level=2] [ref=e110]
+            - paragraph [ref=e111]: Manage Arabic text, bilingual translations, source, and type using local-only state. Validation still uses the existing TV-safe content rules.
+          - generic [ref=e112]:
+            - generic [ref=e113]:
+              - generic [ref=e114]:
+                - text: Arabic text
+                - textbox "Arabic text" [ref=e115]: إن تجتنبوا كبائر ما تنهون عنه نكفر عنكم سيئاتكم وندخلكم مدخلا كريما
+              - generic [ref=e116]:
+                - text: English translation
+                - textbox "English translation" [ref=e117]: If you avoid the major sins forbidden to you, We will remove your lesser sins and admit you to a noble entrance.
+              - generic [ref=e118]:
+                - text: Turkish translation
+                - textbox "Turkish translation" [ref=e119]: Eğer size yasaklanan günahların büyüklerinden kaçınırsanız, sizin küçük günahlarınızı örteriz ve sizi güzel bir yere koyarız.
+              - generic [ref=e120]:
+                - generic [ref=e121]:
+                  - text: Source
+                  - textbox "Source" [ref=e122]: Nisâ Suresi 31. Ayet
+                - generic [ref=e123]:
+                  - text: Type
+                  - combobox "Type" [ref=e124]:
+                    - option "ayah" [selected]
+                    - option "hadith"
+            - paragraph [ref=e125]: "Current lengths: Arabic 67/180, English 112/220, Turkish 125/220."
+            - button "Save daily content" [ref=e127] [cursor=pointer]
+        - generic [ref=e128]:
+          - generic [ref=e129]:
+            - heading "Theme mode" [level=2] [ref=e130]
+            - paragraph [ref=e131]: Select the current local theme mode only. Real theme resolution and live display behavior come later.
+          - generic [ref=e132]:
+            - generic [ref=e133]:
+              - button "auto" [ref=e134] [cursor=pointer]
+              - button "light" [ref=e135] [cursor=pointer]
+              - button "dark" [ref=e136] [cursor=pointer]
+            - paragraph [ref=e137]: "Current local value: auto"
+  - iframe [ref=e138]:
+    
