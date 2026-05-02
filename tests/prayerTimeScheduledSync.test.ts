@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { mockDisplayData } from "../src/data/mockDisplayData.ts";
-import { FIRESTORE_PATHS } from "../src/shared/firestorePaths.ts";
 import {
   createScheduledPrayerTimeSyncHandler,
   SCHEDULED_PRAYER_TIME_SYNC_SCHEDULE,
@@ -45,7 +44,7 @@ test("scheduled prayer time sync delegates prayerTimes/current to the shared syn
 
   assert.equal(calls.length, 1);
   assert.equal(calls[0]?.db, db);
-  assert.equal(calls[0]?.targetPath, FIRESTORE_PATHS.prayerTimesCurrent);
+  assert.equal("targetPath" in (calls[0] ?? {}), false);
   assert.deepEqual(calls[0]?.providerConfig, {
     city: "London",
     country: "United Kingdom",

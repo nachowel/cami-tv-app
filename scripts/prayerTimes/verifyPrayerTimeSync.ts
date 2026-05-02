@@ -110,7 +110,6 @@ async function verifyPrayerTimeSync() {
 
   if (
     !resolvePrayerTimeSyncVerificationWriteAllowance({
-      targetPath: FIRESTORE_PATHS.prayerTimesSyncTest,
       allowTestWrite,
     })
   ) {

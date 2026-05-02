@@ -38,6 +38,12 @@ const providerResult = {
   },
 };
 
+function assertNoRestStyleFirestorePath(path: string) {
+  assert.doesNotMatch(path, /projects\//);
+  assert.doesNotMatch(path, /databases\/\(default\)/);
+  assert.doesNotMatch(path, /\/documents\//);
+}
+
 function createFakeDb(initialValue: unknown) {
   const state = {
     paths: [] as string[],
@@ -97,10 +103,13 @@ test("runPrayerTimeSync writes prayerTimes/current and logs success when manualO
   assert.equal(state.writes.length, 1);
   assert.equal((state.writes[0] as typeof result).today.fajr, "04:32");
   assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.prayerTimesCurrent]);
+  for (const path of state.paths) {
+    assertNoRestStyleFirestorePath(path);
+  }
   assert.deepEqual(errorLogs, []);
   assert.match(
     infoLogs[0] ?? "",
-    /Prayer times synced to prayerTimes\/current from aladhan with effective source aladhan\./,
+    /Prayer times synced to prayerTimes\/current from aladhan/,
   );
 });
 
@@ -152,5 +161,8 @@ test("runPrayerTimeSync always uses prayerTimes/current before calling Firestore
   });
 
   assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.prayerTimesCurrent]);
+  for (const path of state.paths) {
+    assertNoRestStyleFirestorePath(path);
+  }
   assert.match(infoLogs[0] ?? "", /Prayer times synced to prayerTimes\/current/);
 });

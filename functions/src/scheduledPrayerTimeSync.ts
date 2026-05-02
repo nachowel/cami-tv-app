@@ -1,6 +1,5 @@
 import type { Firestore } from "firebase-admin/firestore";
 
-import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 import {
   readPrayerTimeSyncRuntimeOptions,
   runPrayerTimeSync,
@@ -34,7 +33,6 @@ export function createScheduledPrayerTimeSyncHandler({
       },
       offsets: runtimeOptions.offsets,
       providerConfig: runtimeOptions.providerConfig,
-      targetPath: FIRESTORE_PATHS.prayerTimesCurrent,
     });
   };
 }

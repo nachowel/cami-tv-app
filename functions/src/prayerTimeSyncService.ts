@@ -124,15 +124,12 @@ export async function runPrayerTimeSync({
     },
     fetchProviderResult: loadProviderResult,
     saveCurrent: async (value) => {
-      console.log("Firestore path:", firestorePath);
       await db.doc(firestorePath).set(value);
     },
     logError,
   }).run();
 
-  logInfo(
-    `Prayer times synced to ${firestorePath} from ${result.providerSource ?? "unknown"} with effective source ${result.effectiveSource}.`,
-  );
+  logInfo(`Prayer times synced to ${firestorePath} from ${result.providerSource ?? "unknown"}`);
 
   return result;
 }
