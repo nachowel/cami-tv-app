@@ -1,5 +1,5 @@
 import type { TranslationKey } from "../../i18n/translations";
-import type { DisplayLanguage } from "../../types/display";
+import type { DisplayLanguage, TvWeather } from "../../types/display";
 import { useTranslation } from "../../i18n/useTranslation";
 import { formatCountdown, type PrayerName } from "../../utils/prayerTimes";
 
@@ -8,6 +8,7 @@ interface ClockPanelProps {
   now: Date;
   nextPrayerName: PrayerName;
   countdownMs: number;
+  weather: TvWeather;
 }
 
 const prayerLabelKeys: Record<PrayerName, TranslationKey> = {
@@ -18,12 +19,18 @@ const prayerLabelKeys: Record<PrayerName, TranslationKey> = {
   isha: "prayer_isha",
 };
 
+/**
+ * Format the clock display using Europe/London timezone consistently.
+ * This ensures the TV always shows London time regardless of which machine
+ * is running the browser.
+ */
 function formatClockTime(now: Date, language: DisplayLanguage) {
   return now.toLocaleTimeString(language === "tr" ? "tr-TR" : "en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
+    timeZone: "Europe/London",
   });
 }
 
@@ -61,7 +68,19 @@ function getCountdownLabel(language: DisplayLanguage, prayerName: string) {
   return `Time until ${prayerName}`;
 }
 
-export function ClockPanel({ language, now, nextPrayerName, countdownMs }: ClockPanelProps) {
+function getWeatherGlyph(icon: string) {
+  if (icon === "clear-day") return "☀";
+  if (icon === "clear-night") return "☾";
+  if (icon === "partly-cloudy-day" || icon === "partly-cloudy-night") return "⛅";
+  if (icon === "cloudy") return "☁";
+  if (icon === "fog") return "〰";
+  if (icon === "drizzle" || icon === "rain") return "☂";
+  if (icon === "snow") return "❄";
+  if (icon === "thunderstorm") return "⚡";
+  return "○";
+}
+
+export function ClockPanel({ language, now, nextPrayerName, countdownMs, weather }: ClockPanelProps) {
   const { t } = useTranslation(language);
   const nextPrayerLabel = t(prayerLabelKeys[nextPrayerName]);
   const countdownText = localizeCountdown(formatCountdown(countdownMs), language);
@@ -85,17 +104,22 @@ export function ClockPanel({ language, now, nextPrayerName, countdownMs }: Clock
         </p>
         <div className="flex min-w-20 flex-col items-center justify-center text-slate-700 2xl:min-w-40">
           <div className="relative h-12 w-12 rounded-full border-[0.45rem] border-amber-400 2xl:h-24 2xl:w-24 2xl:border-[0.7rem]">
+            <span className="absolute inset-0 flex items-center justify-center text-xl font-black text-amber-500 2xl:text-4xl">
+              {getWeatherGlyph(weather.icon)}
+            </span>
             <span className="absolute left-1/2 top-[-1.25rem] h-3 w-1 -translate-x-1/2 rounded-full bg-amber-400 2xl:top-[-1.75rem] 2xl:h-5 2xl:w-1.5" />
             <span className="absolute bottom-[-1.25rem] left-1/2 h-3 w-1 -translate-x-1/2 rounded-full bg-amber-400 2xl:bottom-[-1.75rem] 2xl:h-5 2xl:w-1.5" />
             <span className="absolute left-[-1.25rem] top-1/2 h-1 w-3 -translate-y-1/2 rounded-full bg-amber-400 2xl:left-[-1.75rem] 2xl:h-1.5 2xl:w-5" />
             <span className="absolute right-[-1.25rem] top-1/2 h-1 w-3 -translate-y-1/2 rounded-full bg-amber-400 2xl:right-[-1.75rem] 2xl:h-1.5 2xl:w-5" />
           </div>
-          <p className="mt-2 text-2xl font-bold leading-none 2xl:mt-4 2xl:text-4xl">10°C</p>
-          <p className="mt-1 text-sm font-medium leading-tight 2xl:text-2xl">{t("partly_cloudy")}</p>
+          <p className="mt-2 text-2xl font-bold leading-none 2xl:mt-4 2xl:text-4xl">
+            {weather.temperatureC == null ? "--°C" : `${weather.temperatureC}°C`}
+          </p>
+          <p className="mt-1 text-sm font-medium leading-tight 2xl:text-2xl">{t(weather.condition)}</p>
         </div>
       </div>
 
-      <div className="mt-4 grid min-h-[6.75rem] w-[88%] grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] items-start rounded-2xl border border-emerald-900/10 bg-white px-5 py-4 text-left shadow-[0_12px_35px_rgba(21,54,35,0.10)] 2xl:mt-5 2xl:min-h-[8.5rem] 2xl:w-[88%] 2xl:px-8 2xl:py-5">
+      <div className="mt-auto grid w-[88%] shrink-0 grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] items-start rounded-2xl border border-emerald-900/10 bg-white px-4 py-3 text-left shadow-[0_12px_35px_rgba(21,54,35,0.10)] 2xl:px-8 2xl:py-4">
         <div className="grid grid-cols-[2.8rem_1fr] items-start gap-3 2xl:grid-cols-[5rem_1fr] 2xl:gap-7">
           <div className="flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-emerald-700 text-2xl font-black text-emerald-800 2xl:h-16 2xl:w-16 2xl:border-4 2xl:text-4xl">
             ⌚
@@ -104,7 +128,7 @@ export function ClockPanel({ language, now, nextPrayerName, countdownMs }: Clock
             <p className="text-sm font-black leading-snug text-slate-800 2xl:text-lg">
               {countdownLabel}
             </p>
-            <p className="mt-1 text-[1.85rem] font-black leading-tight text-emerald-800 2xl:text-3xl">
+            <p className="mt-1 whitespace-nowrap text-[1.5rem] font-black leading-tight text-emerald-800 2xl:text-[1.85rem]">
               {countdownText}
             </p>
           </div>

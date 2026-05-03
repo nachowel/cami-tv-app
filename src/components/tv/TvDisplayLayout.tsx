@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { DisplayData } from "../../types/display";
+import type { DisplayData, TvWeather } from "../../types/display";
 import { useTranslation } from "../../i18n/useTranslation";
+import { createUnavailableTvWeather } from "../../services/weatherService";
 import { getCurrentAndNextPrayer } from "../../utils/prayerTimes";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { AutoScrollingText } from "./AutoScrollingText";
@@ -10,6 +11,7 @@ import { DonationPanel } from "./DonationPanel";
 import { MosqueHeaderPanel } from "./MosqueHeaderPanel";
 import { PrayerTimesPanel } from "./PrayerTimesPanel";
 import { resolveTickerDisplayText } from "./tickerView";
+import { createTvWeatherController } from "./tvWeatherState";
 
 interface TvDisplayLayoutProps {
   data: DisplayData;
@@ -19,6 +21,7 @@ export function TvDisplayLayout({ data }: TvDisplayLayoutProps) {
   const language = data.settings.language;
   const { t } = useTranslation(language);
   const [now, setNow] = useState(() => new Date());
+  const [weather, setWeather] = useState<TvWeather>(() => createUnavailableTvWeather());
   const prayerMoment = getCurrentAndNextPrayer(now, data.prayerTimes);
 
   useEffect(() => {
@@ -31,6 +34,18 @@ export function TvDisplayLayout({ data }: TvDisplayLayoutProps) {
     };
   }, []);
 
+  useEffect(() => {
+    const controller = createTvWeatherController({
+      onWeather: setWeather,
+    });
+
+    controller.start();
+
+    return () => {
+      controller.stop();
+    };
+  }, []);
+
   return (
     <main className="min-h-screen overflow-hidden bg-[#f5f3ea] p-3 text-[#14201d] 2xl:p-4">
       <div className="mx-auto grid h-[calc(100vh-1.5rem)] max-w-[1920px] grid-cols-[18%_minmax(0,1fr)_31%] grid-rows-[minmax(0,1fr)_27%_6%] gap-3 overflow-hidden rounded-[1.35rem] border border-emerald-900/10 bg-[#fffdf7] p-3 shadow-[0_18px_55px_rgba(21,54,35,0.14)] 2xl:h-[calc(100vh-2rem)] 2xl:grid-cols-[18%_minmax(0,1fr)_29%] 2xl:grid-rows-[minmax(0,1fr)_23%_6.5%] 2xl:gap-5 2xl:p-5">
@@ -38,12 +53,13 @@ export function TvDisplayLayout({ data }: TvDisplayLayoutProps) {
           <MosqueHeaderPanel settings={data.settings} />
         </aside>
 
-        <section className="grid min-h-0 min-w-0 grid-rows-[61%_minmax(0,1fr)] gap-4 2xl:grid-rows-[64%_minmax(0,1fr)] 2xl:gap-6">
+        <section className="grid min-h-0 min-w-0 grid-rows-[72%_minmax(0,1fr)] gap-3 2xl:grid-rows-[72%_minmax(0,1fr)] 2xl:gap-5">
           <ClockPanel
             language={language}
             now={now}
             nextPrayerName={prayerMoment.nextPrayer.name}
             countdownMs={prayerMoment.countdownMs}
+            weather={weather}
           />
           <DailyContentPanel content={data.dailyContent} language={language} />
         </section>

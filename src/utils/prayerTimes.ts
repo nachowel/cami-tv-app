@@ -19,71 +19,163 @@ export interface PrayerMoment {
 const displayOrder: PrayerDisplayName[] = ["fajr", "sunrise", "dhuhr", "asr", "maghrib", "isha"];
 const prayerOrder: PrayerName[] = ["fajr", "dhuhr", "asr", "maghrib", "isha"];
 
-function getStartOfDay(date: Date) {
-  const startOfDay = new Date(date);
-  startOfDay.setHours(0, 0, 0, 0);
-  return startOfDay;
+/**
+ * Get the London date components from a Date object.
+ * Uses Intl.DateTimeFormat to extract the actual London date parts,
+ * which handles BST/GMT transitions correctly.
+ */
+function getLondonDateParts(date: Date): { year: number; month: number; day: number } {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const year = Number(parts.find((p) => p.type === "year")!.value);
+  const month = Number(parts.find((p) => p.type === "month")!.value);
+  const day = Number(parts.find((p) => p.type === "day")!.value);
+
+  return { year, month, day };
 }
 
-function addDays(date: Date, days: number) {
-  const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
-  return nextDate;
+/**
+ * Get the London hour and minute from a Date object.
+ */
+function getLondonTimeParts(date: Date): { hour: number; minute: number; second: number } {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  const parts = formatter.formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")!.value);
+  const minute = Number(parts.find((p) => p.type === "minute")!.value);
+  const second = Number(parts.find((p) => p.type === "second")!.value);
+
+  return { hour, minute, second };
 }
 
-function createPrayerEntry(date: Date, name: PrayerDisplayName, time: Time24Hour): PrayerScheduleEntry {
+/**
+ * Convert a London date + HH:MM time string into a UTC-based Date object
+ * that represents that exact London moment. This is the core function that
+ * ensures prayer time comparisons work correctly regardless of the browser's
+ * local timezone.
+ */
+function londonTimeToDate(londonDate: { year: number; month: number; day: number }, timeString: Time24Hour): Date {
+  const [hours, minutes] = timeString.split(":").map(Number);
+
+  // Build an ISO string targeting the London date/time, then use the
+  // Intl API to find the correct UTC offset for that moment.
+  // We construct a Date in UTC first, then adjust for the London offset.
+  const tentativeUtc = new Date(
+    Date.UTC(londonDate.year, londonDate.month - 1, londonDate.day, hours, minutes, 0, 0)
+  );
+
+  // Find the London offset at this approximate time.
+  // The offset is: londonLocal - UTC. We can derive it by comparing
+  // the London-formatted hour with the UTC hour.
+  const londonParts = getLondonTimeParts(tentativeUtc);
+  const offsetHours = londonParts.hour - tentativeUtc.getUTCHours();
+  // Normalize to handle day boundary wrap (e.g. UTC 23:00 = London 00:00 BST)
+  const normalizedOffset = ((offsetHours + 24) % 24);
+  const actualOffset = normalizedOffset > 12 ? normalizedOffset - 24 : normalizedOffset;
+
+  // The prayer time in UTC = london time - offset
+  const utcMs = Date.UTC(
+    londonDate.year,
+    londonDate.month - 1,
+    londonDate.day,
+    hours - actualOffset,
+    minutes,
+    0,
+    0
+  );
+
+  return new Date(utcMs);
+}
+
+function createPrayerEntry(
+  londonDate: { year: number; month: number; day: number },
+  name: PrayerDisplayName,
+  time: Time24Hour,
+): PrayerScheduleEntry {
   return {
     name,
     time,
-    dateTime: parsePrayerTime(date, time),
+    dateTime: londonTimeToDate(londonDate, time),
     isPrayer: name !== "sunrise",
   };
 }
 
-function getPrayerEntriesForDate(date: Date, prayerTimes: PrayerTimesForDay) {
-  return prayerOrder.map((name) => createPrayerEntry(date, name, prayerTimes[name])) as Array<
+function getPrayerEntriesForDate(
+  londonDate: { year: number; month: number; day: number },
+  prayerTimes: PrayerTimesForDay,
+) {
+  return prayerOrder.map((name) => createPrayerEntry(londonDate, name, prayerTimes[name])) as Array<
     PrayerScheduleEntry & { name: PrayerName }
   >;
 }
 
+/**
+ * @deprecated Use londonTimeToDate instead for timezone-safe parsing.
+ * Kept for backward compatibility with any external callers.
+ */
 export function parsePrayerTime(date: Date, timeString: Time24Hour) {
-  const [hours, minutes] = timeString.split(":").map(Number);
-  const parsed = new Date(date);
-
-  parsed.setHours(hours, minutes, 0, 0);
-
-  return parsed;
+  const londonDate = getLondonDateParts(date);
+  return londonTimeToDate(londonDate, timeString);
 }
 
 export function getPrayerScheduleForDate(date: Date, prayerTimes: PrayerTimesForDay) {
-  return displayOrder.map((name) => createPrayerEntry(date, name, prayerTimes[name]));
+  const londonDate = getLondonDateParts(date);
+  return displayOrder.map((name) => createPrayerEntry(londonDate, name, prayerTimes[name]));
 }
 
+/**
+ * Determine the current and next prayer based on the current time.
+ * All comparisons use absolute UTC timestamps derived from London times,
+ * so this works correctly regardless of the browser's local timezone.
+ */
 export function getCurrentAndNextPrayer(now: Date, prayerTimes: PrayerTimesCurrent): PrayerMoment {
-  const today = getStartOfDay(now);
-  const todaysPrayers = getPrayerEntriesForDate(today, prayerTimes.today);
-  const passedPrayers = todaysPrayers.filter((entry) => entry.dateTime <= now);
+  const londonToday = getLondonDateParts(now);
+  const todaysPrayers = getPrayerEntriesForDate(londonToday, prayerTimes.today);
+
+  // Floor `now` to the start of the current second so the countdown seconds
+  // are always consistent with the displayed clock time (which also floors).
+  const nowMs = now.getTime();
+  const nowFlooredMs = nowMs - (nowMs % 1000);
+
+  const passedPrayers = todaysPrayers.filter((entry) => entry.dateTime.getTime() <= nowFlooredMs);
   const currentPrayer = passedPrayers.at(-1) ?? null;
-  const nextPrayerToday = todaysPrayers.find((entry) => entry.dateTime > now);
+  const nextPrayerToday = todaysPrayers.find((entry) => entry.dateTime.getTime() > nowFlooredMs);
 
   if (nextPrayerToday) {
     return {
       currentPrayer,
       nextPrayer: nextPrayerToday,
-      countdownMs: Math.max(0, nextPrayerToday.dateTime.getTime() - now.getTime()),
+      countdownMs: Math.max(0, nextPrayerToday.dateTime.getTime() - nowFlooredMs),
     };
   }
 
-  const tomorrow = addDays(today, 1);
-  const tomorrowFajr = prayerTimes.tomorrow?.fajr ?? prayerTimes.today.fajr;
-  const nextPrayer = createPrayerEntry(tomorrow, "fajr", tomorrowFajr) as PrayerScheduleEntry & {
+  // After Isha — next prayer is tomorrow's Fajr
+  const tomorrowDate = {
+    ...londonToday,
+    day: londonToday.day + 1,
+  };
+  // Handle month/year rollover: let Date.UTC normalize it
+  const tomorrowFajrTime = prayerTimes.tomorrow?.fajr ?? prayerTimes.today.fajr;
+  const nextPrayer = createPrayerEntry(tomorrowDate, "fajr", tomorrowFajrTime) as PrayerScheduleEntry & {
     name: PrayerName;
   };
 
   return {
     currentPrayer,
     nextPrayer,
-    countdownMs: Math.max(0, nextPrayer.dateTime.getTime() - now.getTime()),
+    countdownMs: Math.max(0, nextPrayer.dateTime.getTime() - nowFlooredMs),
   };
 }
 

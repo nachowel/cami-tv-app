@@ -9,6 +9,17 @@ export type DailyContentType = "ayah" | "hadith";
 export type TickerType = "hadith" | "message";
 
 export type PrayerTimeSource = "aladhan" | "manual";
+export type WeatherConditionKey =
+  | "weather_clear"
+  | "weather_partly_cloudy"
+  | "weather_cloudy"
+  | "weather_fog"
+  | "weather_drizzle"
+  | "weather_rain"
+  | "weather_snow"
+  | "weather_thunderstorm"
+  | "weather_unknown"
+  | "weather_unavailable";
 
 export type IsoDate = `${number}-${number}-${number}`;
 
@@ -92,6 +103,14 @@ export interface TickerCurrent {
   text: LocalizedText;
   type: TickerType;
   updated_at: IsoDateTime;
+}
+
+export interface TvWeather {
+  temperatureC: number | null;
+  condition: WeatherConditionKey;
+  icon: string;
+  isDay: boolean;
+  fetchedAt: IsoDateTime | null;
 }
 
 export interface DisplayData {
