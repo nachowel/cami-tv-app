@@ -10,6 +10,7 @@ export type TickerType = "hadith" | "message";
 
 export type PrayerTimeSource = "aladhan" | "manual" | "awqat-salah";
 export type PrayerTimeSourceSetting = PrayerTimeSource;
+export type PrayerTimeProviderAlias = "aladhan" | "awqat";
 export type WeatherConditionKey =
   | "weather_clear"
   | "weather_partly_cloudy"
@@ -73,8 +74,11 @@ export interface PrayerTimesCurrent {
   today: PrayerTimesForDay;
   tomorrow: PrayerTimesForDay | null;
   updated_at: IsoDateTime;
+  updatedAt?: IsoDateTime;
   effectiveSource: PrayerTimeSource;
   providerSource: Exclude<PrayerTimeSource, "manual"> | null;
+  provider?: PrayerTimeProviderAlias | null;
+  source?: PrayerTimeProviderAlias | null;
   method: number | null;
   fetchedAt: IsoDateTime | null;
   manualOverride: boolean;

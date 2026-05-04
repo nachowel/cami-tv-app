@@ -2,17 +2,20 @@ import {
   createAwqatSalahClient,
   readAwqatSalahCredentialsFromEnv,
 } from "./awqatSalahClient.ts";
+import { createAladhanProvider } from "./aladhanProvider.ts";
 import {
   mapAwqatToPrayerTimesDocument,
   type AwqatPrayerTimeDayInput,
 } from "./awqatPrayerTimeMapper.ts";
 import {
+  readPrayerTimeSyncRuntimeOptions,
   readPrayerTimeSourceSettings,
 } from "../../functions/src/prayerTimeSyncService.ts";
 import type { PrayerTimesCurrent } from "../../src/types/display.ts";
 import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 import { describePrayerTimesForLog, validatePrayerTimesCurrent } from "./prayerTimesValidation.ts";
 import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
+import { applySuccessfulProviderSync } from "./prayerTimeSyncShared.ts";
 
 const LOCKED_CITY_ID = 14096;
 const LOCKED_COUNTRY_ID = 15;
@@ -138,6 +141,9 @@ export async function runProductionAwqatSalahSync({
     return normalizePrayerTimesCurrent(snapshot.exists ? snapshot.data() : null);
   }
 
+  const currentSnapshot = await ref.get();
+  const current = normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
+
   try {
     const credentials = readAwqatSalahCredentialsFromEnv(env);
     const client = createAwqatSalahClient(fetchImpl ? { fetchImpl } : undefined);
@@ -145,9 +151,6 @@ export async function runProductionAwqatSalahSync({
     await client.login(credentials);
     const dailyPayload = await client.getDailyPrayerTimes(LOCKED_CITY_ID);
     const today = getSinglePrayerTimeRecord(dailyPayload, "daily");
-
-    const currentSnapshot = await ref.get();
-    const current = normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
 
     const nextValue = mapAwqatToPrayerTimesDocument({
       current,
@@ -185,7 +188,45 @@ export async function runProductionAwqatSalahSync({
 
     return validatedValue;
   } catch (error) {
-    logError("Awqat Salah prayer time sync failed.", error);
-    throw error;
+    logError("Awqat Salah fetch failed. Falling back to Aladhan.", error);
+
+    const runtimeOptions = readPrayerTimeSyncRuntimeOptions(env);
+    const providerResult = await createAladhanProvider().fetchAutomaticTimes(
+      runtimeOptions.providerConfig,
+      runtimeOptions.offsets,
+      fetchImpl,
+      executionTime,
+    );
+    const fallbackValue = applySuccessfulProviderSync(current, providerResult);
+
+    const validation = validatePrayerTimesCurrent(fallbackValue);
+    if (!validation.valid) {
+      const fallbackError = new Error(
+        `Prayer times validation failed before Firestore write:\n  ${validation.errors.join("\n  ")}`,
+      );
+      logError("Prayer times validation failed.", fallbackError);
+      throw fallbackError;
+    }
+
+    const validatedValue: PrayerTimesCurrent = {
+      ...fallbackValue,
+      validationStatus: "valid",
+    };
+
+    await ref.set(validatedValue);
+
+    logInfo(
+      describePrayerTimesForLog(
+        validatedValue,
+        runtimeOptions.providerConfig.timezone,
+        validatedValue.providerSource ?? "unknown",
+        FIRESTORE_PATHS.prayerTimesCurrent,
+      ),
+    );
+    logInfo("[Awqat Salah Sync] Completed successfully with Aladhan fallback");
+    logInfo(`  docPath: ${FIRESTORE_PATHS.prayerTimesCurrent}`);
+    logInfo(`  source: ${validatedValue.providerSource ?? "unknown"}`);
+
+    return validatedValue;
   }
 }

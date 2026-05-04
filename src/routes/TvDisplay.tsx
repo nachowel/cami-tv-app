@@ -38,5 +38,9 @@ export default function TvDisplay() {
     return stopSync;
   }, []);
 
+  useEffect(() => {
+    console.log("[PRAYER SOURCE]", displayData.prayerTimes.provider, displayData.prayerTimes.updatedAt);
+  }, [displayData.prayerTimes.provider, displayData.prayerTimes.updatedAt]);
+
   return <TvDisplayLayout data={displayData} />;
 }

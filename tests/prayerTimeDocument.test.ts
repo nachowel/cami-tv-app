@@ -71,6 +71,9 @@ test("normalizePrayerTimesCurrent keeps existing aladhan documents compatible", 
 
   assert.equal(result.effectiveSource, "aladhan");
   assert.equal(result.providerSource, "aladhan");
+  assert.equal(result.provider, "aladhan");
+  assert.equal(result.source, "aladhan");
+  assert.equal(result.updatedAt, "2026-05-02T19:00:00.000Z");
   assert.equal(result.manualOverride, false);
 });
 
@@ -116,7 +119,47 @@ test("normalizePrayerTimesCurrent accepts awqat-salah as providerSource and effe
 
   assert.equal(result.effectiveSource, "awqat-salah");
   assert.equal(result.providerSource, "awqat-salah");
+  assert.equal(result.provider, "awqat");
+  assert.equal(result.source, "awqat");
+  assert.equal(result.updatedAt, "2026-07-05T00:10:00.000Z");
   assert.equal(result.manualOverride, false);
+});
+
+test("normalizePrayerTimesCurrent accepts provider/source aliases for awqat documents", () => {
+  const result = normalizePrayerTimesCurrent({
+    date: "2026-07-05",
+    today: {
+      fajr: "03:28",
+      sunrise: "05:20",
+      dhuhr: "13:02",
+      asr: "17:10",
+      maghrib: "20:34",
+      isha: "22:15",
+    },
+    tomorrow: null,
+    updatedAt: "2026-07-05T00:10:00.000Z",
+    source: "awqat",
+    provider: "awqat",
+    manualOverride: false,
+    automaticTimes: {
+      date: "2026-07-05",
+      today: {
+        fajr: "03:28",
+        sunrise: "05:20",
+        dhuhr: "13:02",
+        asr: "17:10",
+        maghrib: "20:34",
+        isha: "22:15",
+      },
+      tomorrow: null,
+    },
+  });
+
+  assert.equal(result.effectiveSource, "awqat-salah");
+  assert.equal(result.providerSource, "awqat-salah");
+  assert.equal(result.provider, "awqat");
+  assert.equal(result.source, "awqat");
+  assert.equal(result.updatedAt, "2026-07-05T00:10:00.000Z");
 });
 
 test("restoreEffectivePrayerTimesFromAutomatic copies automatic times immediately when available", () => {
@@ -125,6 +168,9 @@ test("restoreEffectivePrayerTimesFromAutomatic copies automatic times immediatel
       ...mockDisplayData.prayerTimes,
       manualOverride: true,
       effectiveSource: "manual",
+      providerSource: "awqat-salah",
+      provider: "awqat",
+      source: "awqat",
       automaticTimes: {
         date: "2026-05-02",
         today: {
@@ -142,8 +188,11 @@ test("restoreEffectivePrayerTimesFromAutomatic copies automatic times immediatel
   );
 
   assert.equal(result.manualOverride, false);
-  assert.equal(result.effectiveSource, "aladhan");
+  assert.equal(result.effectiveSource, "awqat-salah");
   assert.equal(result.date, "2026-05-02");
   assert.equal(result.today.fajr, "04:55");
   assert.equal(result.updated_at, "2026-05-02T19:00:00.000Z");
+  assert.equal(result.updatedAt, "2026-05-02T19:00:00.000Z");
+  assert.equal(result.provider, "awqat");
+  assert.equal(result.source, "awqat");
 });

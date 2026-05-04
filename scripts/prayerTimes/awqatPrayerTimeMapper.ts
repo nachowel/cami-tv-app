@@ -1,4 +1,5 @@
 import type { IsoDate, PrayerTimesCurrent, PrayerTimesForDay, Time24Hour } from "../../src/types/display.ts";
+import { toPrayerProviderAlias } from "../../src/utils/prayerTimeDocument.ts";
 
 export interface AwqatPrayerTimeDayInput {
   fajr: string;
@@ -69,10 +70,14 @@ export function mapAwqatToPrayerTimesDocument({
   fetchedAt,
 }: MapAwqatToPrayerTimesDocumentInput): PrayerTimesCurrent {
   const automaticTimes = normalizeAwqatAutomaticSnapshot(today);
+  const providerAlias = toPrayerProviderAlias("awqat-salah");
 
   const nextValue: PrayerTimesCurrent = {
     ...current,
+    updatedAt: fetchedAt,
     providerSource: "awqat-salah",
+    provider: providerAlias,
+    source: providerAlias,
     method: null,
     fetchedAt,
     offsets: current.offsets,

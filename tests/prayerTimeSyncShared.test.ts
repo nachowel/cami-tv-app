@@ -64,10 +64,13 @@ test("applySuccessfulProviderSync writes effective fields when manualOverride is
 
   assert.equal(result.effectiveSource, "aladhan");
   assert.equal(result.providerSource, "aladhan");
+  assert.equal(result.provider, "aladhan");
+  assert.equal(result.source, "aladhan");
   assert.equal(result.date, "2026-05-02");
   assert.equal(result.today.fajr, "04:32");
   assert.equal(result.tomorrow?.maghrib, "20:24");
   assert.equal(result.updated_at, "2026-05-02T03:40:00.000Z");
+  assert.equal(result.updatedAt, "2026-05-02T03:40:00.000Z");
   assert.deepEqual(result.automaticTimes, providerResult.automaticTimes);
   assert.deepEqual(result.offsets, providerResult.offsets);
 });
@@ -99,6 +102,9 @@ test("applySuccessfulProviderSync preserves manual effective fields when manualO
   assert.equal(result.today.fajr, mockDisplayData.prayerTimes.today.fajr);
   assert.equal(result.updated_at, mockDisplayData.prayerTimes.updated_at);
   assert.equal(result.providerSource, "aladhan");
+  assert.equal(result.provider, "aladhan");
+  assert.equal(result.source, "aladhan");
+  assert.equal(result.updatedAt, "2026-05-02T03:40:00.000Z");
   assert.equal(result.method, 13);
   assert.equal(result.fetchedAt, "2026-05-02T03:40:00.000Z");
   assert.deepEqual(result.offsets, providerResult.offsets);

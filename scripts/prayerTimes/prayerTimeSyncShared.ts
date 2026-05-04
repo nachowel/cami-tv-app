@@ -2,6 +2,7 @@ import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.
 import type { PrayerTimesCurrent } from "../../src/types/display.ts";
 import type { PrayerTimeProviderResult } from "./prayerTimeProviderTypes.ts";
 import { validatePrayerTimesCurrent } from "./prayerTimesValidation.ts";
+import { toPrayerProviderAlias } from "../../src/utils/prayerTimeDocument.ts";
 
 function hasCompleteAutomaticTimes(providerResult: PrayerTimeProviderResult) {
   return providerResult.automaticTimes.today != null && providerResult.automaticTimes.tomorrow != null;
@@ -11,9 +12,13 @@ export function applySuccessfulProviderSync(
   current: PrayerTimesCurrent,
   providerResult: PrayerTimeProviderResult,
 ): PrayerTimesCurrent {
+  const providerAlias = toPrayerProviderAlias(providerResult.providerSource);
   const nextValue: PrayerTimesCurrent = {
     ...current,
+    updatedAt: providerResult.fetchedAt,
     providerSource: providerResult.providerSource,
+    provider: providerAlias,
+    source: providerAlias,
     method: providerResult.method,
     fetchedAt: providerResult.fetchedAt,
     offsets: providerResult.offsets,

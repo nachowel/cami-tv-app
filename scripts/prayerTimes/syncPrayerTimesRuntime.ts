@@ -9,7 +9,11 @@ import {
 import type { PrayerTimesCurrent } from "../../src/types/display.ts";
 import { describePrayerTimesForLog } from "./prayerTimesValidation.ts";
 import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
-import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
+import {
+  getPrayerTimesUpdatedAt,
+  normalizePrayerTimesCurrent,
+  toPrayerProviderAlias,
+} from "../../src/utils/prayerTimeDocument.ts";
 
 interface FirestoreDocumentSnapshotLike {
   data: () => unknown;
@@ -88,6 +92,23 @@ export async function runProductionPrayerTimeSync({
     return normalizePrayerTimesCurrent(snapshot.exists ? snapshot.data() : null);
   }
 
+  const currentSnapshot = await ref.get();
+  const current = normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
+  const activeProvider = toPrayerProviderAlias(current.provider ?? current.providerSource);
+  const lastUpdated = getPrayerTimesUpdatedAt(current);
+  const lastUpdatedMs = lastUpdated ? Date.parse(lastUpdated) : Number.NaN;
+  const isFreshAwqatDocument =
+    activeProvider === "awqat" &&
+    Number.isFinite(lastUpdatedMs) &&
+    (executionTime.getTime() - lastUpdatedMs) < (24 * 60 * 60 * 1000);
+
+  if (isFreshAwqatDocument) {
+    logInfo(
+      `[Prayer Times Sync] Skipped: ${FIRESTORE_PATHS.prayerTimesCurrent} already has fresh awqat data from ${lastUpdated}`,
+    );
+    return current;
+  }
+
   const providerResultLoader =
     fetchProviderResult ??
     (() =>
@@ -99,10 +120,7 @@ export async function runProductionPrayerTimeSync({
       ));
 
   const runnerResult = await createPrayerTimeSyncRunner({
-    fetchCurrent: async () => {
-      const snapshot = await ref.get();
-      return snapshot.exists ? snapshot.data() : null;
-    },
+    fetchCurrent: async () => current,
     fetchProviderResult: providerResultLoader,
     saveCurrent: async (value) => {
       await ref.set(value);

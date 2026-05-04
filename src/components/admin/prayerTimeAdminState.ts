@@ -59,6 +59,7 @@ export function createManualPrayerTimesSaveValue(
     ...current,
     today: nextToday,
     updated_at: updatedAt,
+    updatedAt,
     manualOverride: true,
     effectiveSource: "manual",
   };

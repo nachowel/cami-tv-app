@@ -50,8 +50,11 @@ test("Awqat mapper preserves HH:MM values exactly and sets awqat-salah as the au
   assert.equal(result.today.maghrib, "20:34");
   assert.equal(result.tomorrow, null);
   assert.equal(result.updated_at, fetchedAt);
+  assert.equal(result.updatedAt, fetchedAt);
   assert.equal(result.effectiveSource, "awqat-salah");
   assert.equal(result.providerSource, "awqat-salah");
+  assert.equal(result.provider, "awqat");
+  assert.equal(result.source, "awqat");
   assert.equal(result.method, null);
   assert.equal(result.fetchedAt, fetchedAt);
   assert.equal(result.manualOverride, false);
@@ -133,6 +136,8 @@ test("Awqat mapper preserves manual override semantics while refreshing automati
   assert.equal(result.updated_at, mockDisplayData.prayerTimes.updated_at);
   assert.equal(result.effectiveSource, "manual");
   assert.equal(result.providerSource, "awqat-salah");
+  assert.equal(result.provider, "awqat");
+  assert.equal(result.source, "awqat");
   assert.equal(result.fetchedAt, fetchedAt);
   assert.equal(result.manualOverride, true);
   assert.deepEqual(result.automaticTimes, {

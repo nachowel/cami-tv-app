@@ -144,8 +144,11 @@ test("saved Firestore document has validationStatus valid and all backward-compa
   assert.ok("today" in saved, "backward-compatible: today field present");
   assert.ok("tomorrow" in saved, "backward-compatible: tomorrow field present");
   assert.ok("updated_at" in saved, "backward-compatible: updated_at field present");
+  assert.ok("updatedAt" in saved, "backward-compatible: updatedAt field present");
   assert.ok("effectiveSource" in saved, "backward-compatible: effectiveSource field present");
   assert.ok("providerSource" in saved, "backward-compatible: providerSource field present");
+  assert.ok("provider" in saved, "backward-compatible: provider field present");
+  assert.ok("source" in saved, "backward-compatible: source field present");
   assert.ok("automaticTimes" in saved, "backward-compatible: automaticTimes field present");
   assert.ok("offsets" in saved, "backward-compatible: offsets field present");
   assert.ok("manualOverride" in saved, "backward-compatible: manualOverride field present");
@@ -161,6 +164,8 @@ test("saved Firestore document has validationStatus valid and all backward-compa
   assert.equal(saved.date, "2026-05-02");
   assert.equal(saved.effectiveSource, "aladhan");
   assert.equal(saved.providerSource, "aladhan");
+  assert.equal(saved.provider, "aladhan");
+  assert.equal(saved.source, "aladhan");
   assert.equal(saved.manualOverride, false);
   assert.equal(saved.validationStatus, "valid", "validationStatus must be 'valid' in Firestore document");
 });
@@ -218,4 +223,42 @@ test("production prayer sync runtime skips when settings/prayerTimes source is m
   assert.equal(state.writes.length, 0);
   assert.ok(logs.some((message) => /skipped/i.test(message)));
   assert.ok(logs.some((message) => /manual/i.test(message)));
+});
+
+test("production prayer sync runtime skips aladhan when prayerTimes/current already has fresh awqat data", async () => {
+  const logs: string[] = [];
+  let providerCalls = 0;
+  const { db, state } = createFakeDb({
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+    effectiveSource: "awqat-salah",
+    providerSource: "awqat-salah",
+    provider: "awqat",
+    source: "awqat",
+    updated_at: "2026-05-04T11:30:00.000Z",
+    updatedAt: "2026-05-04T11:30:00.000Z",
+    fetchedAt: "2026-05-04T11:30:00.000Z",
+  });
+  state.valueByPath["settings/prayerTimes"] = { source: "aladhan" };
+
+  const result = await runProductionPrayerTimeSync({
+    db,
+    now: new Date("2026-05-04T12:00:00.000Z"),
+    fetchProviderResult: async () => {
+      providerCalls += 1;
+      return providerResult;
+    },
+    logError(message, error) {
+      logs.push(`${message}:${error instanceof Error ? error.message : String(error)}`);
+    },
+    logInfo(message) {
+      logs.push(message);
+    },
+  });
+
+  assert.equal(providerCalls, 0);
+  assert.equal(state.writes.length, 0);
+  assert.equal(result.provider, "awqat");
+  assert.ok(logs.some((message) => /fresh awqat/i.test(message)));
+  assert.ok(logs.some((message) => /skipped/i.test(message)));
 });

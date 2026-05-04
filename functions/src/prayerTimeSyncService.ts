@@ -8,7 +8,11 @@ import type {
 import { createPrayerTimeSyncRunner } from "../../scripts/prayerTimes/prayerTimeSyncShared.ts";
 import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 import type { PrayerTimeOffsets, PrayerTimesCurrent } from "../../src/types/display.ts";
-import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
+import {
+  getPrayerTimesUpdatedAt,
+  normalizePrayerTimesCurrent,
+  toPrayerProviderAlias,
+} from "../../src/utils/prayerTimeDocument.ts";
 import { normalizePrayerTimeSourceSettings } from "../../src/utils/prayerTimeSourceSettings.ts";
 
 function getTrimmedEnv(name: string, env: NodeJS.ProcessEnv) {
@@ -113,14 +117,30 @@ export async function runPrayerTimeSync({
 }: RunPrayerTimeSyncOptions) {
   const firestorePath = FIRESTORE_PATHS.prayerTimesCurrent;
   const prayerTimeSourceSettings = await readPrayerTimeSourceSettings(db);
+  const currentSnapshot = await db.doc(firestorePath).get();
+  const current = normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
 
   if (prayerTimeSourceSettings.source !== "aladhan") {
     logInfo(
       `Prayer time sync skipped because ${FIRESTORE_PATHS.settingsPrayerTimes} source is ${prayerTimeSourceSettings.source}.`,
     );
+    return current;
+  }
 
-    const currentSnapshot = await db.doc(firestorePath).get();
-    return normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
+  const activeProvider = toPrayerProviderAlias(current.provider ?? current.providerSource);
+  const lastUpdated = getPrayerTimesUpdatedAt(current);
+  const lastUpdatedMs = lastUpdated ? Date.parse(lastUpdated) : Number.NaN;
+  const executionTime = now ?? new Date();
+  const isFreshAwqatDocument =
+    activeProvider === "awqat" &&
+    Number.isFinite(lastUpdatedMs) &&
+    (executionTime.getTime() - lastUpdatedMs) < (24 * 60 * 60 * 1000);
+
+  if (isFreshAwqatDocument) {
+    logInfo(
+      `Prayer time sync skipped because ${firestorePath} already has fresh awqat data from ${lastUpdated}.`,
+    );
+    return current;
   }
 
   const loadProviderResult =
@@ -136,10 +156,7 @@ export async function runPrayerTimeSync({
     });
 
   const result = await createPrayerTimeSyncRunner({
-    fetchCurrent: async () => {
-      const snapshot = await db.doc(firestorePath).get();
-      return snapshot.exists ? snapshot.data() : null;
-    },
+    fetchCurrent: async () => current,
     fetchProviderResult: loadProviderResult,
     saveCurrent: async (value) => {
       await db.doc(firestorePath).set(value);

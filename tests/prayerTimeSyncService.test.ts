@@ -239,3 +239,42 @@ test("runPrayerTimeSync exits without writing when source is awqat-salah", async
   assert.match(infoLogs[0] ?? "", /awqat-salah/);
   assert.match(infoLogs[0] ?? "", /skipped/i);
 });
+
+test("runPrayerTimeSync skips aladhan overwrite when a fresh awqat document already exists", async () => {
+  const infoLogs: string[] = [];
+  let providerCalls = 0;
+  const { db, state } = createFakeDb({
+    [FIRESTORE_PATHS.prayerTimesCurrent]: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "awqat-salah",
+      providerSource: "awqat-salah",
+      provider: "awqat",
+      source: "awqat",
+      updated_at: "2026-05-04T11:30:00.000Z",
+      updatedAt: "2026-05-04T11:30:00.000Z",
+      fetchedAt: "2026-05-04T11:30:00.000Z",
+    },
+    [FIRESTORE_PATHS.settingsPrayerTimes]: {
+      source: "aladhan",
+    },
+  });
+
+  const result = await runPrayerTimeSync({
+    db,
+    now: new Date("2026-05-04T12:00:00.000Z"),
+    fetchProviderResult: async () => {
+      providerCalls += 1;
+      return providerResult;
+    },
+    logInfo(message) {
+      infoLogs.push(message);
+    },
+  });
+
+  assert.equal(providerCalls, 0);
+  assert.equal(state.writes.length, 0);
+  assert.equal(result.provider, "awqat");
+  assert.ok(infoLogs.some((message) => /fresh awqat/i.test(message)));
+  assert.ok(infoLogs.some((message) => /skip/i.test(message)));
+});
