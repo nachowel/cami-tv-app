@@ -45,6 +45,30 @@ test("automatic pending mode stays visible as waiting when effectiveSource is st
   assert.ok(result.description.includes("Sonraki başarılı Aladhan senkronundan sonra"));
 });
 
+test("awqat automatic mode shows Awqat Salah as the active source", () => {
+  const result = getPrayerTimesAdminModeState({
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+    effectiveSource: "awqat-salah",
+    providerSource: "awqat-salah",
+    automaticTimes: {
+      date: "2026-07-05",
+      today: {
+        fajr: "03:28",
+        sunrise: "05:20",
+        dhuhr: "13:02",
+        asr: "17:10",
+        maghrib: "20:34",
+        isha: "22:15",
+      },
+      tomorrow: null,
+    },
+  });
+
+  assert.equal(result.label, "Otomatik: Awqat Salah");
+  assert.ok(result.description.includes("Awqat Salah"));
+});
+
 test("createManualPrayerTimesSaveValue updates effective prayer times and preserves automaticTimes", () => {
   const result = createManualPrayerTimesSaveValue(
     {

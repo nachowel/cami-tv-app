@@ -642,3 +642,52 @@ test("createFirestoreReadWriteClient defaults missing prayer time source setting
     },
   ]);
 });
+
+test("createFirestoreReadWriteClient fetches awqat prayer time source settings for refresh-safe admin state", async () => {
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(_db, path) {
+        return { path };
+      },
+      getDoc: async () => ({
+        data: () => ({
+          cityId: "14096",
+          cityName: "LONDRA",
+          source: "awqat-salah",
+          updatedAt: {
+            toDate() {
+              return new Date("2026-07-05T00:10:00.000Z");
+            },
+          },
+          updatedBy: "admin@example.com",
+        }),
+        exists: () => true,
+      }),
+      getDocs: async () => ({
+        docs: [],
+      }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async () => {},
+    },
+    {} as never,
+  );
+
+  const result = await client.fetchPrayerTimeSettings();
+
+  assert.deepEqual(result, {
+    cityId: "14096",
+    cityName: "LONDRA",
+    source: "awqat-salah",
+    updatedAt: "2026-07-05T00:10:00.000Z",
+    updatedBy: "admin@example.com",
+  });
+});

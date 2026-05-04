@@ -36,6 +36,13 @@ export function getPrayerTimesAdminModeState(
     };
   }
 
+  if (current.effectiveSource === "awqat-salah") {
+    return {
+      label: "Otomatik: Awqat Salah",
+      description: "TV şu anda Awqat Salah'dan gelen etkili vakitleri gösteriyor.",
+    };
+  }
+
   return {
     label: "Otomatik bekleniyor",
     description:
