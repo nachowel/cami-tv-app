@@ -691,3 +691,67 @@ test("createFirestoreReadWriteClient fetches awqat prayer time source settings f
     updatedBy: "admin@example.com",
   });
 });
+
+test("createFirestoreReadWriteClient safely omits undefined fields when saving settings/prayerTimes", async () => {
+  const calls: Array<{ kind: string; value: unknown }> = [];
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(currentDb, path) {
+        calls.push({ kind: "doc", value: { currentDb, path } });
+        return { currentDb, path };
+      },
+      getDoc: async () => ({
+        data: () => undefined,
+        exists: () => false,
+      }),
+      getDocs: async () => ({
+        docs: [],
+      }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async (ref, value) => {
+        calls.push({ kind: "setDoc", value: { ref, value } });
+      },
+    },
+    db,
+  );
+
+  await client.savePrayerTimeSettings({
+    source: "awqat-salah",
+    updatedAt: "2026-05-04T12:00:00.000Z",
+    cityId: undefined,
+    cityName: undefined,
+  });
+
+  assert.deepEqual(calls, [
+    {
+      kind: "doc",
+      value: {
+        currentDb: db,
+        path: "settings/prayerTimes",
+      },
+    },
+    {
+      kind: "setDoc",
+      value: {
+        ref: {
+          currentDb: db,
+          path: "settings/prayerTimes",
+        },
+        value: {
+          source: "awqat-salah",
+          updatedAt: new Date("2026-05-04T12:00:00.000Z"),
+        },
+      },
+    },
+  ]);
+});

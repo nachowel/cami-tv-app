@@ -381,13 +381,16 @@ export function createFirestoreReadWriteClient<
       await executeWrite("saveDonationCurrent", donation, () => api.setDoc(getDonationRef(), donation));
     },
     async savePrayerTimeSettings(settings: PrayerTimeSourceSettings) {
-      const firestoreValue = {
-        cityId: settings.cityId,
-        cityName: settings.cityName,
+      const firestoreValue: Record<string, unknown> = {
         source: settings.source,
         updatedAt: settings.updatedAt ? new Date(settings.updatedAt) : new Date(),
-        updatedBy: settings.updatedBy,
       };
+
+      for (const [key, value] of Object.entries(settings)) {
+        if (value !== undefined && key !== "source" && key !== "updatedAt") {
+          firestoreValue[key] = value;
+        }
+      }
 
       await executeWrite("savePrayerTimeSettings", firestoreValue, () =>
         api.setDoc(getPrayerTimeSettingsRef(), firestoreValue),
