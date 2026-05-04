@@ -42,7 +42,7 @@ test("automatic pending mode stays visible as waiting when effectiveSource is st
   });
 
   assert.equal(result.label, "Otomatik bekleniyor");
-  assert.ok(result.description.includes("Sonraki başarılı Aladhan senkronundan sonra"));
+  assert.ok(result.description.includes("Sonraki başarılı otomatik senkron"));
 });
 
 test("awqat automatic mode shows Awqat Salah as the active source", () => {

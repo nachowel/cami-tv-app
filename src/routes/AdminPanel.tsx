@@ -14,8 +14,6 @@ import {
   commitAnnouncementSave,
   commitAdminSectionSave,
   commitAnnouncementDelete,
-  createInfoStatus,
-  createSavedStatus,
   createSavingStatus,
 } from "../components/admin/adminPersistence.ts";
 import {
@@ -64,7 +62,6 @@ import { grantAdminClaim, removeAdminClaim } from "../services/adminClaimsServic
 import { getAdminUserManagementAvailability } from "../services/adminClaimsService.ts";
 import {
   createManualPrayerTimesSaveValue,
-  disableManualPrayerTimesOverride,
 } from "../components/admin/prayerTimeAdminState.ts";
 import {
   validateAnnouncement,
@@ -514,40 +511,6 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     updateSectionStatus("prayerTimes", result.status);
   }
 
-  async function handleAutomaticPrayerTimesEnable() {
-    const restoreResult = disableManualPrayerTimesOverride(
-      prayerTimesCurrent,
-      new Date().toISOString(),
-    );
-
-    updateSectionStatus("prayerTimes", createSavingStatus("Kaydediliyor..."));
-
-    const result = await commitAdminSectionSave({
-      isAuthenticated,
-      nextValue: restoreResult.nextValue,
-      persist: savePrayerTimesCurrent,
-      successMessage: "Otomatik Aladhan modu etkinleştirildi.",
-    });
-
-    if (result.valueToApply) {
-      setPrayerTimesCurrent(result.valueToApply);
-      setPrayerTimesDraft(result.valueToApply.today);
-      setShowPrayerTimeErrors(false);
-    }
-
-    if (!result.committed) {
-      updateSectionStatus("prayerTimes", result.status);
-      return;
-    }
-
-    updateSectionStatus(
-      "prayerTimes",
-      restoreResult.warningMessage
-        ? createInfoStatus(restoreResult.warningMessage)
-        : createSavedStatus("Otomatik Aladhan modu etkinleştirildi."),
-    );
-  }
-
   function handlePrayerTimeSourceChange(nextSource: PrayerTimeSourceSettings["source"]) {
     const nextSettings: PrayerTimeSourceSettings = {
       ...prayerTimeSourceSettings,
@@ -816,7 +779,6 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             errors={prayerTimeErrors}
             id="prayer-times"
             mobileOpen={activeMobileSection === "prayer-times"}
-            onAutomaticModeEnable={handleAutomaticPrayerTimesEnable}
             onChange={setPrayerTimesDraft}
             onMobileToggle={() => setActiveMobileSection("prayer-times")}
             onSourceChange={handlePrayerTimeSourceChange}

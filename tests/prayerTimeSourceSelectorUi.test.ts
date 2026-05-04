@@ -7,20 +7,21 @@ const prayerTimesSectionSource = readFileSync(
   "utf8",
 );
 
-test("prayer time source selector includes the Awqat Salah option and binds to settings source", () => {
-  assert.match(prayerTimesSectionSource, /label:\s*"Manual Entry", value:\s*"manual"/);
-  assert.match(prayerTimesSectionSource, /label:\s*"Awqat Salah API", value:\s*"awqat-salah"/);
-  assert.match(prayerTimesSectionSource, /value=\{prayerTimeSourceSettings\.source\}/);
+test("prayer time source UI shows clear Manual Entry and Awqat Salah actions", () => {
+  assert.match(prayerTimesSectionSource, /Current source:\s*\{currentSourceLabel\}/);
+  assert.match(prayerTimesSectionSource, /label:\s*"Use Manual Entry", value:\s*"manual"/);
+  assert.match(prayerTimesSectionSource, /label:\s*"Use Awqat Salah API", value:\s*"awqat-salah"/);
   assert.match(
     prayerTimesSectionSource,
-    /onChange=\{\(event\) => onSourceChange\(event\.target\.value as PrayerTimeSourceSetting\)\}/,
+    /primaryPrayerTimeSourceOptions\.map\(\(option\) => \{/,
   );
   assert.match(
     prayerTimesSectionSource,
-    /Active source:\s*\{getPrayerTimeSourceLabel\(prayerTimeSourceSettings\.source\)\}/,
+    /onClick=\{\(\) => onSourceChange\(option\.value\)\}/,
   );
   assert.match(
     prayerTimesSectionSource,
     /Saving manual prayer times updates prayerTimes\/current only\. It does not change this source setting\./,
   );
+  assert.doesNotMatch(prayerTimesSectionSource, /Otomatik Aladhan moduna dön/);
 });

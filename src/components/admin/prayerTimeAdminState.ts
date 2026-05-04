@@ -2,7 +2,7 @@ import type { PrayerTimesCurrent, PrayerTimesForDay } from "../../types/display.
 import { restoreEffectivePrayerTimesFromAutomatic } from "../../utils/prayerTimeDocument.ts";
 
 const missingAutomaticTimesWarning =
-  "Otomatik mod açıldı. Kayıtlı Aladhan vakti henüz bulunmadığı için mevcut değerler korunuyor. Sonraki başarılı senkronizasyonda otomatik vakitler uygulanacak.";
+  "Otomatik mod açıldı. Kayıtlı otomatik vakit henüz bulunmadığı için mevcut değerler korunuyor. Sonraki başarılı otomatik senkronda bu değerler uygulanacak.";
 
 export interface DisableManualPrayerTimesOverrideResult {
   nextValue: PrayerTimesCurrent;
@@ -46,7 +46,7 @@ export function getPrayerTimesAdminModeState(
   return {
     label: "Otomatik bekleniyor",
     description:
-      "TV mevcut vakitleri koruyor. Sonraki başarılı Aladhan senkronundan sonra otomatik vakitler uygulanacak.",
+      "TV mevcut vakitleri koruyor. Sonraki başarılı otomatik senkrondan sonra otomatik vakitler uygulanacak.",
   };
 }
 

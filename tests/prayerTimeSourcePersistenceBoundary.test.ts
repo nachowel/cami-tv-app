@@ -23,7 +23,7 @@ test("source switch persists settings/prayerTimes through savePrayerTimeSettings
 
 test("manual prayer time save updates prayerTimes current without overwriting source settings", () => {
   const manualSaveMatch = adminPanelSource.match(
-    /async function handlePrayerTimesSubmit\(\) \{([\s\S]*?)\n  \}\n\n  async function handleAutomaticPrayerTimesEnable/,
+    /async function handlePrayerTimesSubmit\(\) \{([\s\S]*?)\n  \}\n\n  function handlePrayerTimeSourceChange/,
   );
 
   assert.ok(manualSaveMatch, "expected to locate handlePrayerTimesSubmit");
