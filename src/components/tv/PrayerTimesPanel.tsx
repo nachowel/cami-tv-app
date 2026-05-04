@@ -28,17 +28,28 @@ function formatUpdateTime(isoDateTime: string): string {
 export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer }: PrayerTimesPanelProps) {
   const { t } = useTranslation(language);
   const today = prayerTimes.today;
-  const providerAlias = prayerTimes.provider;
-  const providerLabel =
-    providerAlias === "awqat"
-      ? "Awqat"
-      : providerAlias === "aladhan"
-        ? "Aladhan"
-        : "Unknown";
-  const sourceLabel =
-    prayerTimes.effectiveSource === "manual"
-      ? "Geçerli mod: Manual"
-      : `Geçerli mod: Otomatik: ${providerLabel}`;
+  const provider = prayerTimes.provider;
+
+  console.log("UI SOURCE DEBUG", {
+    provider: prayerTimes.provider,
+    effectiveSource: prayerTimes.effectiveSource
+  });
+
+  let label = "";
+  let activeSource = "";
+
+  if (provider === "awqat") {
+    label = "Otomatik: Awqat";
+    activeSource = "awqat";
+  } else if (provider === "aladhan") {
+    label = "Otomatik: Aladhan";
+    activeSource = "aladhan";
+  } else {
+    label = "Otomatik bekleniyor";
+    activeSource = "manual";
+  }
+
+  const sourceLabel = activeSource === "manual" ? "Geçerli mod: Manual" : `Geçerli mod: ${label}`;
   const updateTime = formatUpdateTime(prayerTimes.updated_at);
 
   return (
