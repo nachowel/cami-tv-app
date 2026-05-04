@@ -48,3 +48,14 @@ test("prayer time source settings normalize supported source and timestamp-like 
     },
   );
 });
+
+test("prayer time source aliases normalize correctly", () => {
+  const base = { cityId: "1", cityName: "A", updatedAt: null };
+
+  assert.equal(normalizePrayerTimeSourceSettings({ ...base, source: "awqat" }).source, "awqat-salah");
+  assert.equal(normalizePrayerTimeSourceSettings({ ...base, source: "awqat-salah" }).source, "awqat-salah");
+  assert.equal(normalizePrayerTimeSourceSettings({ ...base, source: "aladhan" }).source, "aladhan");
+  assert.equal(normalizePrayerTimeSourceSettings({ ...base, source: "invalid" }).source, "manual");
+  assert.equal(normalizePrayerTimeSourceSettings({ ...base, source: null }).source, "manual");
+  assert.equal(normalizePrayerTimeSourceSettings({ ...base }).source, "manual");
+});

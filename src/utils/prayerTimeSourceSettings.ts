@@ -38,7 +38,15 @@ export function createDefaultPrayerTimeSourceSettings(): PrayerTimeSourceSetting
 }
 
 function normalizeSource(value: unknown): PrayerTimeSourceSetting {
-  return value === "aladhan" || value === "awqat-salah" ? value : "manual";
+  if (value === "aladhan") {
+    return "aladhan";
+  }
+
+  if (value === "awqat" || value === "awqat-salah") {
+    return "awqat-salah";
+  }
+
+  return "manual";
 }
 
 export function normalizePrayerTimeSourceSettings(value: unknown): PrayerTimeSourceSettings {
