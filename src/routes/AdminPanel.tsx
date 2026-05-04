@@ -89,6 +89,16 @@ interface AdminPanelContentProps {
   userId: string;
 }
 
+type AdminSectionId =
+  | "admin-users"
+  | "language-settings"
+  | "donation-settings"
+  | "announcements"
+  | "prayer-times"
+  | "daily-content"
+  | "footer-ticker"
+  | "theme-mode";
+
 function getDisplayLanguageLabel(language: DisplaySettings["language"]) {
   return language === "tr" ? "Türkçe" : "İngilizce";
 }
@@ -155,6 +165,8 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   const [showPrayerTimeErrors, setShowPrayerTimeErrors] = useState(false);
   const [showDailyContentErrors, setShowDailyContentErrors] = useState(false);
   const [showTickerErrors, setShowTickerErrors] = useState(false);
+  const [activeMobileSection, setActiveMobileSection] = useState<AdminSectionId>("announcements");
+  const [isAnnouncementFormVisible, setIsAnnouncementFormVisible] = useState(false);
   const donationAmountValidation = useMemo(
     () => validateDonationAmount(donationAmountDraft),
     [donationAmountDraft],
@@ -235,6 +247,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     setDonationUrlDraft(data.donation.donation_url);
     setAnnouncements(data.announcements);
     setEditingAnnouncementId(null);
+    setIsAnnouncementFormVisible(false);
     setAnnouncementDraft(createAnnouncementDraft());
     setPrayerTimesCurrent(data.prayerTimes);
     setPrayerTimesDraft(data.prayerTimes.today);
@@ -348,6 +361,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   function handleStartNewAnnouncement() {
     setEditingAnnouncementId(null);
     setAnnouncementDraft(createAnnouncementDraft());
+    setIsAnnouncementFormVisible(true);
     setShowAnnouncementErrors(false);
     updateSectionStatus("announcements", {
       message: "Yeni duyuru eklemeye hazır.",
@@ -363,6 +377,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
 
     setEditingAnnouncementId(announcementId);
     setAnnouncementDraft(createAnnouncementDraft(currentAnnouncement));
+    setIsAnnouncementFormVisible(true);
     setShowAnnouncementErrors(false);
     updateSectionStatus("announcements", {
       message: `Duyuru düzenleniyor: ${announcementId}.`,
@@ -388,6 +403,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     if (result.resetDraft) {
       setEditingAnnouncementId(result.nextEditingAnnouncementId);
       setAnnouncementDraft(createAnnouncementDraft());
+      setIsAnnouncementFormVisible(false);
       setShowAnnouncementErrors(false);
     } else if (result.nextEditingAnnouncementId !== null) {
       setEditingAnnouncementId(result.nextEditingAnnouncementId);
@@ -425,6 +441,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     if (result.resetDraft && result.nextDraft) {
       setEditingAnnouncementId(result.nextEditingAnnouncementId);
       setAnnouncementDraft(result.nextDraft);
+      setIsAnnouncementFormVisible(false);
     }
 
     if (result.clearValidationErrors) {
@@ -432,6 +449,14 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     }
 
     updateSectionStatus("announcements", result.status);
+  }
+
+  function handleCancelAnnouncementForm() {
+    setEditingAnnouncementId(null);
+    setAnnouncementDraft(createAnnouncementDraft());
+    setIsAnnouncementFormVisible(false);
+    setShowAnnouncementErrors(false);
+    updateSectionStatus("announcements", null);
   }
 
   async function handlePrayerTimesSubmit() {
@@ -611,16 +636,16 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
+    <main className="min-h-screen overflow-x-clip bg-slate-100 px-4 py-4 text-slate-950 sm:px-6 sm:py-8">
       <section className="mx-auto max-w-5xl">
-        <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Yönetim Paneli</p>
-        <div className="mt-2 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">{displaySettings.mosque_name}</h1>
-            <p className="mt-2 text-sm text-slate-600">Giriş yapan kullanıcı: {userEmail}</p>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 sm:text-sm">Yönetim Paneli</p>
+            <h1 className="mt-1 truncate text-2xl font-bold sm:mt-2 sm:text-4xl">{displaySettings.mosque_name}</h1>
+            <p className="mt-1 truncate text-xs text-slate-600 sm:mt-2 sm:text-sm">Giriş yapan kullanıcı: {userEmail}</p>
           </div>
           <button
-            className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-emerald-500"
+            className="min-h-9 shrink-0 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-emerald-500 sm:min-h-11 sm:px-4 sm:py-2 sm:text-sm"
             onClick={() => {
               void onLogout();
             }}
@@ -629,7 +654,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             Çıkış yap
           </button>
         </div>
-        <p className="mt-3 max-w-3xl text-base leading-7 text-slate-700 sm:text-lg">
+        <p className="mt-3 hidden max-w-3xl text-base leading-7 text-slate-700 sm:block sm:text-lg">
           Bu sayfa Firebase Auth ile korunur. Her bölüm veri varsa Firestore'dan okunur ve siz
           kaydedene kadar yedek veriler kullanılabilir.
         </p>
@@ -652,33 +677,38 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           </p>
         ) : null}
 
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-          <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">Mevcut veri özeti</p>
-          <div className="mt-3 grid gap-3 text-sm text-slate-700 sm:grid-cols-2 lg:grid-cols-4">
-            <p>
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:mt-6 sm:rounded-2xl sm:p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 sm:text-sm">Mevcut veri özeti</p>
+          <p className="mt-1 truncate text-xs text-slate-700 sm:hidden">
+            Dil: {getDisplayLanguageLabel(displaySettings.language)} • Duyuru: {announcements.length} • İmsak: {prayerTimesCurrent.today.fajr}
+          </p>
+          <div className="mt-3 hidden gap-3 text-sm text-slate-700 sm:grid sm:grid-cols-2 lg:grid-cols-4">
+            <p className="rounded-xl bg-slate-50 px-3 py-2 sm:bg-transparent sm:p-0">
               <span className="font-semibold text-slate-900">Dil:</span> {getDisplayLanguageLabel(displaySettings.language)}
             </p>
-            <p>
+            <p className="rounded-xl bg-slate-50 px-3 py-2 sm:bg-transparent sm:p-0">
               <span className="font-semibold text-slate-900">Tema:</span> {getThemeModeLabel(displaySettings.theme_mode)}
             </p>
-            <p>
+            <p className="rounded-xl bg-slate-50 px-3 py-2 sm:bg-transparent sm:p-0">
               <span className="font-semibold text-slate-900">Duyurular:</span> {announcements.length}
             </p>
-            <p>
+            <p className="rounded-xl bg-slate-50 px-3 py-2 sm:bg-transparent sm:p-0">
               <span className="font-semibold text-slate-900">İçerik türü:</span> {getDailyContentTypeLabel(dailyContent.type)}
             </p>
-            <p>
+            <p className="rounded-xl bg-slate-50 px-3 py-2 sm:bg-transparent sm:p-0">
               <span className="font-semibold text-slate-900">İmsak:</span> {prayerTimesCurrent.today.fajr}
             </p>
           </div>
         </div>
 
-        <div className="mt-6 grid gap-6">
+        <div className="mt-4 grid gap-3 sm:mt-6 sm:gap-6">
           <AdminUsersSection
             disabledReason={adminUserManagementAvailability.disabledReason}
             email={adminUserEmail}
             enabled={adminUserManagementAvailability.enabled}
+            id="admin-users"
             isSaving={statusBySection.adminUsers?.tone === "saving"}
+            mobileOpen={activeMobileSection === "admin-users"}
             onEmailChange={(nextEmail) => {
               setAdminUserEmail(nextEmail);
               if (adminUserManagementAvailability.enabled) {
@@ -688,6 +718,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             onGrant={() => {
               void handleAdminUserClaimUpdate(false);
             }}
+            onMobileToggle={() => setActiveMobileSection("admin-users")}
             onRemove={() => {
               void handleAdminUserClaimUpdate(true);
             }}
@@ -695,8 +726,11 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           />
 
           <LanguageSettingsSection
+            id="language-settings"
             language={displaySettings.language}
+            mobileOpen={activeMobileSection === "language-settings"}
             onChange={handleLanguageChange}
+            onMobileToggle={() => setActiveMobileSection("language-settings")}
             status={statusBySection.language}
           />
 
@@ -705,8 +739,11 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             currency={mockDisplayData.donation.currency}
             donationUrl={donationUrlDraft}
             errors={donationErrors}
+            id="donation-settings"
+            mobileOpen={activeMobileSection === "donation-settings"}
             onAmountChange={setDonationAmountDraft}
             onDonationUrlChange={setDonationUrlDraft}
+            onMobileToggle={() => setActiveMobileSection("donation-settings")}
             onSubmit={handleDonationSubmit}
             status={statusBySection.donation}
           />
@@ -716,11 +753,15 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             draft={announcementDraft}
             editingAnnouncementId={editingAnnouncementId}
             errors={announcementErrors}
+            id="announcements"
+            isFormVisible={isAnnouncementFormVisible}
             isSubmitting={isAnnouncementSaving}
-            onCancel={handleStartNewAnnouncement}
+            mobileOpen={activeMobileSection === "announcements"}
+            onCancel={handleCancelAnnouncementForm}
             onDelete={handleDeleteAnnouncement}
             onDraftChange={setAnnouncementDraft}
             onEdit={(announcement) => handleEditAnnouncement(announcement.id)}
+            onMobileToggle={() => setActiveMobileSection("announcements")}
             onStartNew={handleStartNewAnnouncement}
             onSubmit={handleAnnouncementSubmit}
             status={statusBySection.announcements}
@@ -728,8 +769,11 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
 
           <PrayerTimesSection
             errors={prayerTimeErrors}
+            id="prayer-times"
+            mobileOpen={activeMobileSection === "prayer-times"}
             onAutomaticModeEnable={handleAutomaticPrayerTimesEnable}
             onChange={setPrayerTimesDraft}
+            onMobileToggle={() => setActiveMobileSection("prayer-times")}
             onSubmit={handlePrayerTimesSubmit}
             prayerTimesCurrent={prayerTimesCurrent}
             prayerTimes={prayerTimesDraft}
@@ -740,7 +784,10 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             draft={dailyContentDraft}
             errors={dailyContentErrors}
             fieldErrors={dailyContentFieldErrors}
+            id="daily-content"
+            mobileOpen={activeMobileSection === "daily-content"}
             onChange={setDailyContentDraft}
+            onMobileToggle={() => setActiveMobileSection("daily-content")}
             onSubmit={handleDailyContentSubmit}
             status={statusBySection.dailyContent}
           />
@@ -749,13 +796,19 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             draft={tickerDraft}
             errors={tickerErrors}
             fieldErrors={tickerFieldErrors}
+            id="footer-ticker"
+            mobileOpen={activeMobileSection === "footer-ticker"}
             onChange={setTickerDraft}
+            onMobileToggle={() => setActiveMobileSection("footer-ticker")}
             onSubmit={handleTickerSubmit}
             status={statusBySection.ticker}
           />
 
           <ThemeModeSection
+            id="theme-mode"
+            mobileOpen={activeMobileSection === "theme-mode"}
             onChange={handleThemeModeChange}
+            onMobileToggle={() => setActiveMobileSection("theme-mode")}
             status={statusBySection.theme}
             themeMode={displaySettings.theme_mode}
           />
@@ -766,6 +819,10 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
 }
 
 export default function AdminPanel() {
+  useEffect(() => {
+    document.title = "ICMG Bexley TV Admin";
+  }, []);
+
   const { authorizationError, error, isAdmin, loading, login, logout, setupError, user } = useAdminAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -805,10 +862,10 @@ export default function AdminPanel() {
           <p className="mt-3 text-sm leading-6 text-slate-700">{setupError}</p>
           <div className="mt-4 rounded-xl bg-slate-100 p-4 text-sm text-slate-700">
             <p className="font-semibold text-slate-900">Gerekli değişkenler</p>
-            <p className="mt-2 font-mono">VITE_FIREBASE_API_KEY</p>
-            <p className="font-mono">VITE_FIREBASE_AUTH_DOMAIN</p>
-            <p className="font-mono">VITE_FIREBASE_PROJECT_ID</p>
-            <p className="font-mono">VITE_FIREBASE_APP_ID</p>
+            <p className="mt-2 break-all font-mono">VITE_FIREBASE_API_KEY</p>
+            <p className="break-all font-mono">VITE_FIREBASE_AUTH_DOMAIN</p>
+            <p className="break-all font-mono">VITE_FIREBASE_PROJECT_ID</p>
+            <p className="break-all font-mono">VITE_FIREBASE_APP_ID</p>
           </div>
         </section>
       </main>
@@ -817,21 +874,34 @@ export default function AdminPanel() {
 
   if (accessState === "unauthenticated") {
     return (
-      <main className="min-h-screen bg-slate-100 px-4 py-6 text-slate-950 sm:px-6 sm:py-8">
-        <section className="mx-auto max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-wide text-emerald-700">Admin Girişi</p>
-          <h1 className="mt-2 text-2xl font-bold text-slate-950">/admin yönetimi için giriş yapın</h1>
-          <p className="mt-3 text-sm leading-6 text-slate-600">
-            Firebase Auth e-posta/şifre hesabı kullanın. TV ekranı herkese açıktır.
-          </p>
+      <main className="min-h-[100dvh] overflow-x-clip bg-[radial-gradient(circle_at_top,#dff7ee_0,#f8fafc_42%,#eef2f7_100%)] px-4 py-8 text-slate-950 sm:px-6">
+        <section className="mx-auto flex min-h-[calc(100dvh-4rem)] w-full max-w-md items-center justify-center">
+          <div className="w-full rounded-[2rem] border border-white/80 bg-white/95 px-6 py-8 shadow-[0_24px_80px_rgba(15,23,42,0.12)] sm:px-8 sm:py-10">
+            <div className="text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-50 shadow-inner ring-1 ring-emerald-100">
+                <img
+                  alt=""
+                  className="h-10 w-10"
+                  src="/favicon.svg"
+                />
+              </div>
+              <p className="mt-5 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                ICMG Bexley TV Admin
+              </p>
+              <h1 className="mt-3 text-3xl font-bold tracking-normal text-slate-950">Welcome Back</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Sign in to manage the ICMG Bexley TV display
+              </p>
+            </div>
 
-          <form className="mt-6 grid gap-4" onSubmit={handleLoginSubmit}>
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">E-posta</span>
+            <form className="mt-8 grid gap-5" onSubmit={handleLoginSubmit}>
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Email</span>
               <input
                 autoComplete="email"
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-700"
+                className="mt-2 min-h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-100"
                 onChange={(event) => setEmail(event.target.value)}
+                placeholder="admin@example.com"
                 required
                 type="email"
                 value={email}
@@ -839,11 +909,12 @@ export default function AdminPanel() {
             </label>
 
             <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Şifre</span>
+              <span className="text-sm font-semibold text-slate-700">Password</span>
               <input
                 autoComplete="current-password"
-                className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-700"
+                className="mt-2 min-h-12 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-base outline-none transition focus:border-emerald-700 focus:bg-white focus:ring-4 focus:ring-emerald-100"
                 onChange={(event) => setPassword(event.target.value)}
+                placeholder="Enter your password"
                 required
                 type="password"
                 value={password}
@@ -857,12 +928,13 @@ export default function AdminPanel() {
             ) : null}
 
             <button
-              className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+              className="min-h-12 w-full rounded-2xl bg-emerald-700 px-4 py-3 text-base font-semibold text-white shadow-lg shadow-emerald-900/15 transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-200"
               type="submit"
             >
-              Giriş yap
+              Sign In
             </button>
           </form>
+          </div>
         </section>
       </main>
     );
@@ -889,9 +961,9 @@ export default function AdminPanel() {
             Firestore yazma yetkisi sağlamaz.
           </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-slate-600">Giriş yapan kullanıcı: {user?.email ?? "bilinmeyen kullanıcı"}</p>
+            <p className="break-all text-sm text-slate-600">Giriş yapan kullanıcı: {user?.email ?? "bilinmeyen kullanıcı"}</p>
             <button
-              className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-500"
+              className="min-h-11 w-full rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-amber-500 sm:w-auto"
               onClick={() => {
                 void logout();
               }}

@@ -7,6 +7,9 @@ interface DailyContentSectionProps {
   draft: AdminDailyContentDraft;
   errors: string[];
   fieldErrors: Partial<Record<"arabic" | "translationEn" | "translationTr" | "source" | "type", string>>;
+  id?: string;
+  mobileOpen?: boolean;
+  onMobileToggle?: () => void;
   status: SectionStatus | null;
   onChange: (draft: AdminDailyContentDraft) => void;
   onSubmit: () => void;
@@ -21,12 +24,18 @@ export function DailyContentSection({
   draft,
   errors,
   fieldErrors,
+  id,
+  mobileOpen,
+  onMobileToggle,
   status,
   onChange,
   onSubmit,
 }: DailyContentSectionProps) {
   return (
     <AdminSectionCard
+      id={id}
+      mobileOpen={mobileOpen}
+      onMobileToggle={onMobileToggle}
       title="Günün İçeriği"
       description="Arapça metni, çevirileri, kaynağı ve türü yönetin."
     >
@@ -34,7 +43,7 @@ export function DailyContentSection({
         <label className="block">
           <span className="text-sm font-semibold text-slate-700">Arapça metin</span>
           <textarea
-            className={`mt-2 min-h-24 w-full rounded-xl border px-3 py-2 text-right text-sm leading-6 outline-none ${
+            className={`mt-2 min-h-28 w-full rounded-xl border px-3 py-2 text-right text-sm leading-6 outline-none ${
               fieldErrors.arabic ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
             }`}
             onChange={(event) => onChange({ ...draft, arabic: event.target.value })}
@@ -46,7 +55,7 @@ export function DailyContentSection({
         <label className="block">
           <span className="text-sm font-semibold text-slate-700">İngilizce çeviri</span>
           <textarea
-            className={`mt-2 min-h-24 w-full rounded-xl border px-3 py-2 text-sm leading-6 outline-none ${
+            className={`mt-2 min-h-28 w-full rounded-xl border px-3 py-2 text-sm leading-6 outline-none ${
               fieldErrors.translationEn ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
             }`}
             onChange={(event) => onChange({ ...draft, translationEn: event.target.value })}
@@ -60,7 +69,7 @@ export function DailyContentSection({
         <label className="block">
           <span className="text-sm font-semibold text-slate-700">Türkçe çeviri</span>
           <textarea
-            className={`mt-2 min-h-24 w-full rounded-xl border px-3 py-2 text-sm leading-6 outline-none ${
+            className={`mt-2 min-h-28 w-full rounded-xl border px-3 py-2 text-sm leading-6 outline-none ${
               fieldErrors.translationTr ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
             }`}
             onChange={(event) => onChange({ ...draft, translationTr: event.target.value })}
@@ -75,7 +84,7 @@ export function DailyContentSection({
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">Kaynak</span>
             <input
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+              className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
                 fieldErrors.source ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
               }`}
               onChange={(event) => onChange({ ...draft, source: event.target.value })}
@@ -88,7 +97,7 @@ export function DailyContentSection({
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">Tür</span>
             <select
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+              className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
                 fieldErrors.type ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
               }`}
               onChange={(event) =>
@@ -115,14 +124,14 @@ export function DailyContentSection({
         </div>
       ) : null}
 
-      <p className="mt-4 text-xs text-slate-500">
+      <p className="mt-4 hidden text-xs text-slate-500 sm:block">
         Mevcut uzunluklar: Arapça {draft.arabic.length}/180, İngilizce {draft.translationEn.length}/220,
         Türkçe {draft.translationTr.length}/220.
       </p>
 
       <div className="mt-4 flex justify-end">
         <button
-          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          className="min-h-11 w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 sm:w-auto"
           onClick={onSubmit}
           type="button"
         >

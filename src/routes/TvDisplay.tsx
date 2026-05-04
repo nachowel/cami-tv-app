@@ -11,8 +11,10 @@ import {
   subscribeToPrayerTimesCurrent,
   subscribeToTickerCurrent,
 } from "../services/firestoreDisplayService.ts";
+import { useTvViewportLock } from "./useTvViewportLock";
 
 export default function TvDisplay() {
+  useTvViewportLock();
   const [displayData, setDisplayData] = useState<DisplayData>(mockDisplayData);
 
   useEffect(() => {

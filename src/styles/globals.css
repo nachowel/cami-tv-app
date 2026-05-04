@@ -10,10 +10,45 @@
   background: #f8fafc;
 }
 
-body {
+body,
+#root {
   margin: 0;
+}
+
+body {
   min-width: 320px;
-  min-height: 100vh;
+  background: #f5f3ea;
+}
+
+#root {
+  isolation: isolate;
+}
+
+html.tv-viewport-lock,
+body.tv-viewport-lock,
+#root.tv-viewport-lock {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+@font-face {
+  font-family: "Noto Naskh Arabic";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/NotoNaskhArabic-Regular.woff2") format("woff2");
+}
+
+.tv-arabic-copy {
+  direction: rtl;
+  unicode-bidi: plaintext;
+  font-family: "Noto Naskh Arabic", "Amiri", "Scheherazade New", serif;
+  font-kerning: normal;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+  line-height: 1.6;
+  text-align: right;
+  text-rendering: optimizeLegibility;
 }
 
 button,

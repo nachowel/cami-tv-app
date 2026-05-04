@@ -1,5 +1,5 @@
 import { Suspense, lazy } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Route, Routes } from "react-router-dom";
 import TvDisplay from "./routes/TvDisplay";
 import { loadAdminPanelRoute } from "./routes/routeLoaders";
 
@@ -8,7 +8,7 @@ const AdminPanel = lazy(loadAdminPanelRoute);
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/tv" replace />} />
+      <Route path="/" element={<TvDisplay />} />
       <Route path="/tv" element={<TvDisplay />} />
       <Route
         path="/admin"

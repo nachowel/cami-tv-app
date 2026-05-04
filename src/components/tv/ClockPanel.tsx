@@ -9,6 +9,7 @@ interface ClockPanelProps {
   nextPrayerName: PrayerName;
   countdownMs: number;
   weather: TvWeather;
+  weatherColumnWidth: number;
 }
 
 const prayerLabelKeys: Record<PrayerName, TranslationKey> = {
@@ -49,14 +50,7 @@ function formatClockDate(now: Date, language: DisplayLanguage) {
   return `${londonDay}, ${londonDateStr}`;
 }
 
-function localizeCountdown(countdownText: string, language: DisplayLanguage) {
-  if (language === "tr") {
-    return countdownText
-      .replace(/ hr/g, " sa")
-      .replace(/ min/g, " dk")
-      .replace(/ sec/g, " sn");
-  }
-
+function localizeCountdown(countdownText: string, _language: DisplayLanguage) {
   return countdownText;
 }
 
@@ -80,7 +74,14 @@ function getWeatherGlyph(icon: string) {
   return "○";
 }
 
-export function ClockPanel({ language, now, nextPrayerName, countdownMs, weather }: ClockPanelProps) {
+export function ClockPanel({
+  language,
+  now,
+  nextPrayerName,
+  countdownMs,
+  weather,
+  weatherColumnWidth,
+}: ClockPanelProps) {
   const { t } = useTranslation(language);
   const nextPrayerLabel = t(prayerLabelKeys[nextPrayerName]);
   const countdownText = localizeCountdown(formatCountdown(countdownMs), language);
@@ -88,61 +89,66 @@ export function ClockPanel({ language, now, nextPrayerName, countdownMs, weather
   const dateStr = formatClockDate(now, language);
 
   return (
-    <section className="flex h-full min-h-0 min-w-0 flex-col items-center justify-start overflow-hidden rounded-2xl bg-[#fffdf7] px-2 pb-2 pt-1 text-center 2xl:px-3 2xl:pb-3 2xl:pt-2">
+    <section className="flex h-full min-h-0 min-w-0 flex-col items-center justify-start overflow-hidden rounded-2xl bg-[#fffdf7] px-[clamp(0.4rem,0.65vw,0.72rem)] pb-[clamp(0.25rem,0.4vw,0.45rem)] pt-[clamp(0.16rem,0.32vw,0.32rem)] text-center">
       <div>
-        <p className="text-xl font-black uppercase tracking-[0.08em] text-emerald-800 2xl:text-4xl">
+        <p className="text-[clamp(0.9rem,1.58vw,1.82rem)] font-black uppercase tracking-[0.08em] text-emerald-800">
           {dateStr}
         </p>
-        <p className="mt-1 text-base font-medium text-slate-600 2xl:mt-2 2xl:text-3xl">
+        <p className="mt-[0.04rem] text-[clamp(0.66rem,0.96vw,1.08rem)] font-medium text-slate-600">
           {t("hijri")}
         </p>
       </div>
 
-      <div className="mt-1 grid w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 2xl:mt-4 2xl:gap-6">
-        <p className="min-w-0 text-center font-mono text-[7.2rem] font-black leading-none text-emerald-950 drop-shadow-[0_5px_8px_rgba(13,77,43,0.16)] 2xl:text-[9.75rem]">
+      <div
+        className="mt-[clamp(0.08rem,0.25vh,0.22rem)] grid w-full min-w-0 items-center gap-[clamp(1rem,1.6vw,2rem)]"
+        style={{ gridTemplateColumns: `minmax(0,1fr) ${weatherColumnWidth}px` }}
+      >
+        <p className="min-w-0 text-center font-mono text-[clamp(3.3rem,6.1vw,7rem)] font-[950] leading-[0.86] tracking-[-0.02em] text-emerald-950 drop-shadow-[0_5px_8px_rgba(13,77,43,0.16)]">
           {formatClockTime(now, language)}
         </p>
-        <div className="flex min-w-20 flex-col items-center justify-center text-slate-700 2xl:min-w-40">
-          <div className="relative h-12 w-12 rounded-full border-[0.45rem] border-amber-400 2xl:h-24 2xl:w-24 2xl:border-[0.7rem]">
-            <span className="absolute inset-0 flex items-center justify-center text-xl font-black text-amber-500 2xl:text-4xl">
+        <div className="weather-stack flex min-w-0 max-w-full translate-y-[clamp(0.28rem,0.55vh,0.58rem)] flex-col items-center justify-center gap-[clamp(0.22rem,0.34vw,0.42rem)] pl-[clamp(0.1rem,0.25vw,0.3rem)] text-slate-700 opacity-80">
+          <div className="relative h-[clamp(2.3rem,3.9vw,4.05rem)] w-[clamp(2.3rem,3.9vw,4.05rem)] rounded-full border-[clamp(0.22rem,0.36vw,0.48rem)] border-amber-400/80">
+            <span className="absolute inset-0 flex items-center justify-center text-[clamp(0.9rem,1.5vw,1.58rem)] font-black text-amber-500/85">
               {getWeatherGlyph(weather.icon)}
             </span>
-            <span className="absolute left-1/2 top-[-1.25rem] h-3 w-1 -translate-x-1/2 rounded-full bg-amber-400 2xl:top-[-1.75rem] 2xl:h-5 2xl:w-1.5" />
-            <span className="absolute bottom-[-1.25rem] left-1/2 h-3 w-1 -translate-x-1/2 rounded-full bg-amber-400 2xl:bottom-[-1.75rem] 2xl:h-5 2xl:w-1.5" />
-            <span className="absolute left-[-1.25rem] top-1/2 h-1 w-3 -translate-y-1/2 rounded-full bg-amber-400 2xl:left-[-1.75rem] 2xl:h-1.5 2xl:w-5" />
-            <span className="absolute right-[-1.25rem] top-1/2 h-1 w-3 -translate-y-1/2 rounded-full bg-amber-400 2xl:right-[-1.75rem] 2xl:h-1.5 2xl:w-5" />
+            <span className="absolute left-1/2 top-[clamp(-0.7rem,-0.88vw,-0.92rem)] h-[clamp(0.36rem,0.5vw,0.58rem)] w-[clamp(0.14rem,0.18vw,0.22rem)] -translate-x-1/2 rounded-full bg-amber-400/80" />
+            <span className="absolute bottom-[clamp(-0.7rem,-0.88vw,-0.92rem)] left-1/2 h-[clamp(0.36rem,0.5vw,0.58rem)] w-[clamp(0.14rem,0.18vw,0.22rem)] -translate-x-1/2 rounded-full bg-amber-400/80" />
+            <span className="absolute left-[clamp(-0.7rem,-0.88vw,-0.92rem)] top-1/2 h-[clamp(0.14rem,0.18vw,0.22rem)] w-[clamp(0.36rem,0.5vw,0.58rem)] -translate-y-1/2 rounded-full bg-amber-400/80" />
+            <span className="absolute right-[clamp(-0.7rem,-0.88vw,-0.92rem)] top-1/2 h-[clamp(0.14rem,0.18vw,0.22rem)] w-[clamp(0.36rem,0.5vw,0.58rem)] -translate-y-1/2 rounded-full bg-amber-400/80" />
           </div>
-          <p className="mt-2 text-2xl font-bold leading-none 2xl:mt-4 2xl:text-4xl">
+          <p className="text-center text-[clamp(0.94rem,1.4vw,1.52rem)] font-semibold leading-none">
             {weather.temperatureC == null ? "--°C" : `${weather.temperatureC}°C`}
           </p>
-          <p className="mt-1 text-sm font-medium leading-tight 2xl:text-2xl">{t(weather.condition)}</p>
+          <p className="max-w-full break-words text-center text-[clamp(0.54rem,0.7vw,0.74rem)] font-medium leading-tight">
+            {t(weather.condition)}
+          </p>
         </div>
       </div>
 
-      <div className="mt-auto grid w-[88%] shrink-0 grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] items-start rounded-2xl border border-emerald-900/10 bg-white px-4 py-3 text-left shadow-[0_12px_35px_rgba(21,54,35,0.10)] 2xl:px-8 2xl:py-4">
-        <div className="grid grid-cols-[2.8rem_1fr] items-start gap-3 2xl:grid-cols-[5rem_1fr] 2xl:gap-7">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full border-[3px] border-emerald-700 text-2xl font-black text-emerald-800 2xl:h-16 2xl:w-16 2xl:border-4 2xl:text-4xl">
+      <div className="mt-auto grid w-full max-w-[89%] shrink-0 grid-cols-[minmax(0,1fr)_1px_minmax(0,1fr)] items-start rounded-2xl border border-emerald-900/10 bg-white px-[clamp(0.52rem,0.8vw,0.95rem)] py-[clamp(0.3rem,0.45vw,0.42rem)] text-left shadow-[0_12px_35px_rgba(21,54,35,0.10)]">
+        <div className="grid grid-cols-[clamp(1.75rem,2.35vw,2.75rem)_1fr] items-start gap-[clamp(0.35rem,0.55vw,0.72rem)]">
+          <div className="flex h-[clamp(1.75rem,2.35vw,2.75rem)] w-[clamp(1.75rem,2.35vw,2.75rem)] items-center justify-center rounded-full border-[3px] border-emerald-700 text-[clamp(0.88rem,1.35vw,1.45rem)] font-black text-emerald-800">
             ⌚
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-black leading-snug text-slate-800 2xl:text-lg">
+            <p className="text-[clamp(0.58rem,0.74vw,0.76rem)] font-black leading-snug text-slate-800">
               {countdownLabel}
             </p>
-            <p className="mt-1 whitespace-nowrap text-[1.5rem] font-black leading-tight text-emerald-800 2xl:text-[1.85rem]">
+            <p className="mt-[0.04rem] whitespace-nowrap text-[clamp(0.9rem,1.34vw,1.22rem)] font-black leading-tight text-emerald-800">
               {countdownText}
             </p>
           </div>
         </div>
-        <div className="h-16 self-stretch bg-slate-200 2xl:h-auto" />
-        <div className="grid grid-cols-[2.8rem_1fr] items-start gap-3 pl-5 2xl:grid-cols-[5rem_1fr] 2xl:gap-7 2xl:pl-12">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl border-[3px] border-emerald-700 text-2xl font-black text-emerald-800 2xl:h-16 2xl:w-16 2xl:border-4 2xl:text-4xl">
+        <div className="h-full self-stretch bg-slate-200" />
+        <div className="grid grid-cols-[clamp(1.75rem,2.35vw,2.75rem)_1fr] items-start gap-[clamp(0.35rem,0.55vw,0.72rem)] pl-[clamp(0.55rem,0.8vw,0.95rem)]">
+          <div className="flex h-[clamp(1.75rem,2.35vw,2.75rem)] w-[clamp(1.75rem,2.35vw,2.75rem)] items-center justify-center rounded-xl border-[3px] border-emerald-700 text-[clamp(0.88rem,1.35vw,1.45rem)] font-black text-emerald-800">
             □
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-black leading-snug text-slate-800 2xl:text-lg">
+            <p className="text-[clamp(0.58rem,0.74vw,0.76rem)] font-black leading-snug text-slate-800">
               {t("next_prayer")}
             </p>
-            <p className="mt-1 text-[1.85rem] font-black leading-tight text-emerald-800 2xl:text-3xl">
+            <p className="mt-[0.04rem] text-[clamp(0.94rem,1.36vw,1.3rem)] font-black leading-tight text-emerald-800">
               {nextPrayerLabel}
             </p>
           </div>

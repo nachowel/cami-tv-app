@@ -62,6 +62,20 @@ test("between prayers the current prayer is the latest passed prayer and sunrise
   assert.equal(result.countdownMs, ((3 * 60) + 47) * 60 * 1000);
 });
 
+test("during Asr the current prayer remains Asr while the next prayer is Maghrib", () => {
+  const result = getCurrentAndNextPrayer(new Date(2026, 4, 1, 15, 0, 0), basePrayerTimes);
+
+  assert.equal(result.currentPrayer?.name, "asr");
+  assert.equal(result.nextPrayer.name, "maghrib");
+});
+
+test("at Maghrib time the current prayer becomes Maghrib", () => {
+  const result = getCurrentAndNextPrayer(new Date(2026, 4, 1, 16, 41, 0), basePrayerTimes);
+
+  assert.equal(result.currentPrayer?.name, "maghrib");
+  assert.equal(result.nextPrayer.name, "isha");
+});
+
 test("after Isha the next prayer falls back to the next day's Fajr when tomorrow is unavailable", () => {
   const result = getCurrentAndNextPrayer(new Date(2026, 4, 1, 20, 0, 0), basePrayerTimes);
 
@@ -89,7 +103,7 @@ test("after Isha the next prayer uses tomorrow's Fajr when tomorrow data exists"
 });
 
 test("formatCountdown returns zero-padded countdown text", () => {
-  assert.equal(formatCountdown(486_000), "08 min 06 sec");
-  assert.equal(formatCountdown(((2 * 60 * 60) + (3 * 60) + 4) * 1000), "02 hr 03 min 04 sec");
-  assert.equal(formatCountdown(-500), "00 min 00 sec");
+  assert.equal(formatCountdown(486_000), "00:08:06");
+  assert.equal(formatCountdown(((2 * 60 * 60) + (3 * 60) + 4) * 1000), "02:03:04");
+  assert.equal(formatCountdown(-500), "00:00:00");
 });

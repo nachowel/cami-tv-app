@@ -7,6 +7,9 @@ interface FooterTickerSectionProps {
   draft: AdminTickerDraft;
   errors: string[];
   fieldErrors: Partial<Record<"textEn" | "textTr" | "type", string>>;
+  id?: string;
+  mobileOpen?: boolean;
+  onMobileToggle?: () => void;
   status: SectionStatus | null;
   onChange: (draft: AdminTickerDraft) => void;
   onSubmit: () => void;
@@ -21,12 +24,18 @@ export function FooterTickerSection({
   draft,
   errors,
   fieldErrors,
+  id,
+  mobileOpen,
+  onMobileToggle,
   status,
   onChange,
   onSubmit,
 }: FooterTickerSectionProps) {
   return (
     <AdminSectionCard
+      id={id}
+      mobileOpen={mobileOpen}
+      onMobileToggle={onMobileToggle}
       title="Alt Şerit Yazısı"
       description="TV ekranının altındaki yeşil şeritte gösterilen metni yönetin."
     >
@@ -34,7 +43,7 @@ export function FooterTickerSection({
         <label className="block">
           <span className="text-sm font-semibold text-slate-700">English text</span>
           <input
-            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+            className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
               fieldErrors.textEn ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
             }`}
             onChange={(event) => onChange({ ...draft, textEn: event.target.value })}
@@ -47,7 +56,7 @@ export function FooterTickerSection({
         <label className="block">
           <span className="text-sm font-semibold text-slate-700">Türkçe metin</span>
           <input
-            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+            className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
               fieldErrors.textTr ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
             }`}
             onChange={(event) => onChange({ ...draft, textTr: event.target.value })}
@@ -60,7 +69,7 @@ export function FooterTickerSection({
         <label className="block">
           <span className="text-sm font-semibold text-slate-700">Tür</span>
           <select
-            className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+            className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
               fieldErrors.type ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
             }`}
             onChange={(event) => onChange({ ...draft, type: event.target.value as TickerType })}
@@ -84,13 +93,13 @@ export function FooterTickerSection({
         </div>
       ) : null}
 
-      <p className="mt-4 text-xs text-slate-500">
+      <p className="mt-4 hidden text-xs text-slate-500 sm:block">
         Mevcut uzunluklar: İngilizce {draft.textEn.length}/120, Türkçe {draft.textTr.length}/120.
       </p>
 
       <div className="mt-4 flex justify-end">
         <button
-          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          className="min-h-11 w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 sm:w-auto"
           onClick={onSubmit}
           type="button"
         >

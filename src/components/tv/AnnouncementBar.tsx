@@ -52,14 +52,14 @@ export function AnnouncementBar({ announcements, language }: AnnouncementBarProp
   }, [announcementItems.length, currentIndex]);
 
   return (
-    <section className="overflow-hidden rounded-2xl bg-white px-5 py-4 shadow-[0_12px_35px_rgba(21,54,35,0.10)] 2xl:px-9 2xl:py-6">
-      <div className="flex items-center gap-4">
-        <div className="text-3xl text-emerald-800 2xl:text-5xl">◢</div>
-        <p className="text-xl font-black uppercase tracking-[0.06em] text-emerald-800 2xl:text-3xl">
+    <section className="overflow-hidden rounded-2xl bg-white px-[clamp(0.9rem,1.4vw,2rem)] py-[clamp(0.85rem,1.25vw,1.5rem)] shadow-[0_12px_35px_rgba(21,54,35,0.10)]">
+      <div className="flex items-center gap-[clamp(0.65rem,0.95vw,1.25rem)]">
+        <div className="text-[clamp(1.35rem,2.2vw,2.6rem)] text-emerald-800">◢</div>
+        <p className="text-[clamp(1rem,1.7vw,1.7rem)] font-black uppercase tracking-[0.06em] text-emerald-800">
           {t("announcements")}
         </p>
       </div>
-      <ul className="mt-3 space-y-2 text-base font-medium leading-snug text-slate-700 2xl:mt-5 2xl:space-y-3 2xl:text-2xl">
+      <ul className="mt-[clamp(0.5rem,0.85vw,1rem)] space-y-[clamp(0.35rem,0.6vw,0.75rem)] text-[clamp(0.9rem,1.25vw,1.35rem)] font-medium leading-snug text-slate-700">
         {visibleAnnouncements.map((announcement) => (
           <li className="flex gap-3" key={announcement}>
             <span className="text-emerald-800">•</span>

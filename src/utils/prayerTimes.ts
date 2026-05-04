@@ -185,10 +185,5 @@ export function formatCountdown(ms: number) {
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
   const padded = (value: number) => value.toString().padStart(2, "0");
-
-  if (hours > 0) {
-    return `${padded(hours)} hr ${padded(minutes)} min ${padded(seconds)} sec`;
-  }
-
-  return `${padded(minutes)} min ${padded(seconds)} sec`;
+  return `${padded(hours)}:${padded(minutes)}:${padded(seconds)}`;
 }

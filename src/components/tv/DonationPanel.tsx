@@ -14,25 +14,38 @@ export function DonationPanel({ donation, language }: DonationPanelProps) {
     maximumFractionDigits: 0,
     style: "currency",
   }).format(donation.weekly_amount);
+  const donationUrlLabel = donation.donation_url.replace(/^https?:\/\//, "");
+  const donationTitle =
+    language === "en" ? (
+      <>
+        <span className="block">LAST WEEK</span>
+        <span className="block">DONATION</span>
+      </>
+    ) : (
+      t("weekly_donations")
+    );
 
   return (
-    <section className="grid min-h-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-4 overflow-hidden rounded-2xl bg-white px-6 py-3 shadow-[0_12px_35px_rgba(21,54,35,0.10)] 2xl:gap-8 2xl:px-9 2xl:py-4">
+    <section
+      className="grid min-h-0 items-center gap-[clamp(0.55rem,0.8vw,1.1rem)] overflow-hidden rounded-2xl bg-white px-[clamp(0.85rem,1.25vw,1.5rem)] pt-[clamp(0.55rem,0.75vw,0.82rem)] pb-[clamp(0.9rem,1.2vw,1.3rem)] shadow-[0_12px_35px_rgba(21,54,35,0.10)]"
+      style={{ gridTemplateColumns: "minmax(0,1fr) clamp(8.2rem,13.2vw,10.3rem)" }}
+    >
       <div className="min-w-0 text-left">
-        <p className="text-xl font-black uppercase leading-tight tracking-[0.06em] text-emerald-800 2xl:text-3xl">
-          {t("weekly_donations")}
+        <p className="text-[clamp(0.92rem,1.45vw,1.45rem)] font-black uppercase leading-tight tracking-[0.06em] text-emerald-800">
+          {donationTitle}
         </p>
-        <p className="mt-2 text-5xl font-black leading-none tracking-normal text-emerald-800 2xl:mt-3 2xl:text-6xl">
+        <p className="mt-[clamp(0.2rem,0.45vw,0.45rem)] text-[clamp(1.9rem,3.2vw,3.2rem)] font-black leading-none tracking-normal text-emerald-800">
           {formattedAmount}
         </p>
-        <p className="mt-2 max-w-md text-xs font-medium leading-snug text-slate-600 2xl:mt-3 2xl:text-lg">
+        <p className="mt-[clamp(0.18rem,0.35vw,0.35rem)] max-w-md text-[clamp(0.62rem,0.8vw,0.86rem)] font-medium leading-snug text-slate-600">
           {t("scan_to_donate")}
         </p>
       </div>
 
-      <div className="flex w-52 flex-col items-center justify-center 2xl:w-64">
-        <div className="rounded-2xl border border-emerald-900/10 bg-white p-2 shadow-[0_10px_28px_rgba(15,23,42,0.14)] 2xl:p-3">
+      <div className="flex h-full w-full flex-col items-center justify-start gap-[clamp(0.22rem,0.35vw,0.42rem)] pt-[clamp(0.08rem,0.18vw,0.14rem)]">
+        <div className="aspect-square w-[clamp(5.9rem,8.4vw,7.2rem)] rounded-2xl border border-emerald-900/10 bg-white p-[clamp(0.22rem,0.38vw,0.42rem)] shadow-[0_10px_28px_rgba(15,23,42,0.14)]">
           <QRCodeSVG
-            className="h-32 w-32 2xl:h-36 2xl:w-36"
+            className="h-full w-full"
             bgColor="#ffffff"
             fgColor="#042f24"
             level="M"
@@ -41,8 +54,8 @@ export function DonationPanel({ donation, language }: DonationPanelProps) {
             value={donation.donation_url}
           />
         </div>
-        <p className="mt-1.5 w-full truncate rounded-lg bg-emerald-800 px-3 py-1.5 text-center text-xs font-bold leading-tight text-white 2xl:mt-2 2xl:px-4 2xl:py-2 2xl:text-sm">
-          {donation.donation_url.replace("https://", "")}
+        <p className="flex min-h-[clamp(1.7rem,2.2vw,2rem)] w-full min-w-[clamp(7.2rem,11.5vw,8.9rem)] max-w-full items-center justify-center self-stretch rounded-lg bg-emerald-800 px-[clamp(0.5rem,0.72vw,0.84rem)] py-[clamp(0.22rem,0.3vw,0.34rem)] text-center text-[clamp(0.3rem,0.38vw,0.42rem)] font-bold leading-none whitespace-nowrap text-white">
+          {donationUrlLabel}
         </p>
       </div>
     </section>

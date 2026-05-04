@@ -8,6 +8,9 @@ import {
 
 interface PrayerTimesSectionProps {
   errors: Partial<Record<keyof PrayerTimesForDay, string>>;
+  id?: string;
+  mobileOpen?: boolean;
+  onMobileToggle?: () => void;
   prayerTimesCurrent: PrayerTimesCurrent;
   prayerTimes: PrayerTimesForDay;
   status: SectionStatus | null;
@@ -27,6 +30,9 @@ const prayerInputs: Array<{ key: keyof PrayerTimesForDay; label: string }> = [
 
 export function PrayerTimesSection({
   errors,
+  id,
+  mobileOpen,
+  onMobileToggle,
   prayerTimesCurrent,
   prayerTimes,
   status,
@@ -40,6 +46,9 @@ export function PrayerTimesSection({
 
   return (
     <AdminSectionCard
+      id={id}
+      mobileOpen={mobileOpen}
+      onMobileToggle={onMobileToggle}
       title="Namaz Vakitleri"
       description="Günlük namaz vakitlerini güncelleyin."
     >
@@ -51,13 +60,13 @@ export function PrayerTimesSection({
         </p>
         {showRestoreAction ? (
           <>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 hidden text-xs text-slate-500 sm:block">
               Eski kayıtlar güvenlik için manuel modda tutulur. Otomatik Aladhan senkronuna dönmek için
               aşağıdaki düğmeyi bilinçli olarak kullanın.
             </p>
             <div className="mt-3 flex justify-end">
               <button
-                className="rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400"
+                className="min-h-11 w-full rounded-lg border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800 transition hover:border-emerald-400 sm:w-auto"
                 onClick={onAutomaticModeEnable}
                 type="button"
               >
@@ -73,7 +82,7 @@ export function PrayerTimesSection({
           <label className="block" key={prayer.key}>
             <span className="text-sm font-semibold text-slate-700">{prayer.label}</span>
             <input
-              className={`mt-2 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+              className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
                 errors[prayer.key] ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
               }`}
               onChange={(event) =>
@@ -94,7 +103,7 @@ export function PrayerTimesSection({
 
       <div className="mt-4 flex justify-end">
         <button
-          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          className="min-h-11 w-full rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 sm:w-auto"
           onClick={onSubmit}
           type="button"
         >
