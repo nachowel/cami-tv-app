@@ -32,6 +32,14 @@ function readString(value: unknown) {
   return typeof value === "string" ? value : "";
 }
 
+function normalizeEffectiveSource(value: unknown): PrayerTimesCurrent["effectiveSource"] {
+  return value === "aladhan" || value === "awqat-salah" ? value : "manual";
+}
+
+function normalizeProviderSource(value: unknown): PrayerTimesCurrent["providerSource"] {
+  return value === "aladhan" || value === "awqat-salah" ? value : null;
+}
+
 function toTime24Hour(value: string): Time24Hour {
   return value as Time24Hour;
 }
@@ -95,8 +103,8 @@ export function normalizePrayerTimesCurrent(
       : fallbackTomorrow,
     updated_at:
       readString(record.updated_at) || fallback?.updated_at || new Date(0).toISOString(),
-    effectiveSource: record.effectiveSource === "aladhan" ? "aladhan" : "manual",
-    providerSource: record.providerSource === "aladhan" ? "aladhan" : null,
+    effectiveSource: normalizeEffectiveSource(record.effectiveSource),
+    providerSource: normalizeProviderSource(record.providerSource),
     method: typeof record.method === "number" ? record.method : null,
     fetchedAt: readString(record.fetchedAt) || null,
     manualOverride: typeof record.manualOverride === "boolean" ? record.manualOverride : true,
