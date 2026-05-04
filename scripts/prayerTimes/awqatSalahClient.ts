@@ -24,6 +24,8 @@ export interface AwqatSalahCityDetail {
   qiblaAngle?: string;
 }
 
+export type AwqatSalahPrayerTimePayload = unknown;
+
 export interface AwqatSalahLoginResult {
   accessToken: string;
   refreshToken?: string;
@@ -144,6 +146,16 @@ function normalizeCityDetail(path: string, value: unknown) {
   } satisfies AwqatSalahCityDetail;
 }
 
+function normalizePrayerTimePayload(path: string, value: unknown): AwqatSalahPrayerTimePayload {
+  const data = readNestedData(value);
+
+  if (data === undefined) {
+    throw new Error(`Awqat Salah request returned an unexpected response for ${path}.`);
+  }
+
+  return data;
+}
+
 function validateCredentials(credentials: AwqatSalahCredentials) {
   if (!isNonEmptyString(credentials.username) || !isNonEmptyString(credentials.password)) {
     throw new Error(
@@ -260,6 +272,24 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
       return normalizeCityDetail(
         `/api/Place/CityDetail/${cityId}`,
         await getAuthenticatedJson(`/api/Place/CityDetail/${cityId}`),
+      );
+    },
+    async getDailyPrayerTimes(cityId: number) {
+      return normalizePrayerTimePayload(
+        `/api/AwqatSalah/Daily/${cityId}`,
+        await getAuthenticatedJson(`/api/AwqatSalah/Daily/${cityId}`),
+      );
+    },
+    async getWeeklyPrayerTimes(cityId: number) {
+      return normalizePrayerTimePayload(
+        `/api/AwqatSalah/Weekly/${cityId}`,
+        await getAuthenticatedJson(`/api/AwqatSalah/Weekly/${cityId}`),
+      );
+    },
+    async getMonthlyPrayerTimes(cityId: number) {
+      return normalizePrayerTimePayload(
+        `/api/AwqatSalah/Monthly/${cityId}`,
+        await getAuthenticatedJson(`/api/AwqatSalah/Monthly/${cityId}`),
       );
     },
     toSafeErrorMessage,

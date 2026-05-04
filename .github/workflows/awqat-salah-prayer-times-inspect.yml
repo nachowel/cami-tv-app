@@ -1,0 +1,29 @@
+name: Awqat Salah Prayer Times Inspect
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  awqat-salah-prayer-times-inspect:
+    runs-on: ubuntu-latest
+    env:
+      AWQAT_SALAH_USERNAME: ${{ secrets.AWQAT_SALAH_USERNAME }}
+      AWQAT_SALAH_PASSWORD: ${{ secrets.AWQAT_SALAH_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Inspect Awqat Salah prayer times
+        run: node --experimental-strip-types scripts/prayerTimes/inspectAwqatSalahPrayerTimes.ts

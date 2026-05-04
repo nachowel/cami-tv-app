@@ -149,3 +149,76 @@ test("authenticated Awqat Salah place lookup uses the login token and returns pl
     "Bearer access-secret-token",
   );
 });
+
+test("authenticated Awqat Salah prayer time lookups call the expected Daily, Weekly, and Monthly endpoints", async () => {
+  const calls: Array<{ input: string; init?: RequestInit }> = [];
+  const client = createAwqatSalahClient({
+    fetchImpl: async (input, init) => {
+      calls.push({
+        init,
+        input: String(input),
+      });
+
+      if (String(input).endsWith("/Auth/Login")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              accessToken: "access-secret-token",
+              refreshToken: "refresh-secret-token",
+              tokenType: "Bearer",
+            },
+          }),
+          {
+            headers: { "content-type": "application/json" },
+            status: 200,
+          },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              asr: "16:30",
+              dhuhr: "12:45",
+              fajr: "04:10",
+              gregorianDateShortIso8601: "2026-05-04",
+              isha: "21:45",
+              maghrib: "20:15",
+              sunrise: "05:20",
+            },
+          ],
+          success: true,
+        }),
+        {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        },
+      );
+    },
+  });
+
+  await client.login({
+    password: "secret-password",
+    username: "secret-user",
+  });
+
+  const [daily, weekly, monthly] = await Promise.all([
+    client.getDailyPrayerTimes(14096),
+    client.getWeeklyPrayerTimes(14096),
+    client.getMonthlyPrayerTimes(14096),
+  ]);
+
+  assert.equal(Array.isArray(daily), true);
+  assert.equal(Array.isArray(weekly), true);
+  assert.equal(Array.isArray(monthly), true);
+  assert.match(calls[1]?.input ?? "", /\/api\/AwqatSalah\/Daily\/14096$/);
+  assert.match(calls[2]?.input ?? "", /\/api\/AwqatSalah\/Weekly\/14096$/);
+  assert.match(calls[3]?.input ?? "", /\/api\/AwqatSalah\/Monthly\/14096$/);
+  for (const call of calls.slice(1)) {
+    assert.equal(
+      (call.init?.headers as Record<string, string> | undefined)?.Authorization,
+      "Bearer access-secret-token",
+    );
+  }
+});
