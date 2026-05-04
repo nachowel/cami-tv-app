@@ -35,8 +35,10 @@ test("Awqat Salah sync dry-run maps fetched payload into the final document shap
   assert.match(output, /maghrib:\s*20:34/);
   assert.match(output, /automaticTimes:/);
   assert.match(output, /automaticDate:\s*2026-07-05/);
-  assert.match(output, /tomorrowAvailable:\s*yes/);
-  assert.match(output, /tomorrowFajr:\s*03:30/);
+  assert.match(output, /Daily fetch succeeded/);
+  assert.doesNotMatch(output, /Monthly fetch succeeded/);
+  assert.doesNotMatch(output, /tomorrowAvailable/);
+  assert.doesNotMatch(output, /tomorrowFajr/);
   assert.doesNotMatch(output, /secret-user/);
   assert.doesNotMatch(output, /secret-password/);
   assert.doesNotMatch(output, /access-secret-token/);

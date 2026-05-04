@@ -16,15 +16,7 @@ const awqatToday = {
   gregorianDateLongIso8601: "2026-07-05T00:00:00+03:00",
 };
 
-const awqatTomorrow = {
-  fajr: "03:30",
-  sunrise: "05:22",
-  dhuhr: "13:02",
-  asr: "17:11",
-  maghrib: "20:33",
-  isha: "22:13",
-  gregorianDateLongIso8601: "2026-07-06T00:00:00+03:00",
-};
+
 
 const awqatWinterToday = {
   fajr: "06:12",
@@ -49,7 +41,6 @@ test("Awqat mapper preserves HH:MM values exactly and sets awqat-salah as the au
     },
     fetchedAt,
     today: awqatToday,
-    tomorrow: awqatTomorrow,
   });
 
   assert.equal(result.date, "2026-07-05");
@@ -57,7 +48,7 @@ test("Awqat mapper preserves HH:MM values exactly and sets awqat-salah as the au
   assert.equal(result.today.sunrise, "05:20");
   assert.equal(result.today.dhuhr, "13:02");
   assert.equal(result.today.maghrib, "20:34");
-  assert.equal(result.tomorrow?.fajr, "03:30");
+  assert.equal(result.tomorrow, null);
   assert.equal(result.updated_at, fetchedAt);
   assert.equal(result.effectiveSource, "awqat-salah");
   assert.equal(result.providerSource, "awqat-salah");
@@ -75,14 +66,7 @@ test("Awqat mapper preserves HH:MM values exactly and sets awqat-salah as the au
       maghrib: "20:34",
       isha: "22:15",
     },
-    tomorrow: {
-      fajr: "03:30",
-      sunrise: "05:22",
-      dhuhr: "13:02",
-      asr: "17:11",
-      maghrib: "20:33",
-      isha: "22:13",
-    },
+    tomorrow: null,
   });
 });
 
@@ -142,7 +126,6 @@ test("Awqat mapper preserves manual override semantics while refreshing automati
     },
     fetchedAt,
     today: awqatToday,
-    tomorrow: awqatTomorrow,
   });
 
   assert.equal(result.date, mockDisplayData.prayerTimes.date);
@@ -162,21 +145,24 @@ test("Awqat mapper preserves manual override semantics while refreshing automati
       maghrib: "20:34",
       isha: "22:15",
     },
-    tomorrow: {
-      fajr: "03:30",
-      sunrise: "05:22",
-      dhuhr: "13:02",
-      asr: "17:11",
-      maghrib: "20:33",
-      isha: "22:13",
-    },
+    tomorrow: null,
   });
 });
 
-test("Awqat mapper returns null tomorrow when no tomorrow payload is provided", () => {
+test("Awqat mapper never preserves current.tomorrow — always outputs null", () => {
+  const existingTomorrow = {
+    fajr: "03:30" as const,
+    sunrise: "05:22" as const,
+    dhuhr: "13:02" as const,
+    asr: "17:11" as const,
+    maghrib: "20:33" as const,
+    isha: "22:13" as const,
+  };
+
   const result = mapAwqatToPrayerTimesDocument({
     current: {
       ...mockDisplayData.prayerTimes,
+      tomorrow: existingTomorrow,
       manualOverride: false,
       effectiveSource: "manual",
       providerSource: null,

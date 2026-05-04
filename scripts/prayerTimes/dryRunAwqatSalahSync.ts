@@ -74,38 +74,6 @@ function createMockFetch(mode: AwqatSyncDryRunTestMode): typeof fetch {
       );
     }
 
-    if (mode === "sync-dry-run" && endsWithPrayerTimePath(url, "Monthly")) {
-      return new Response(
-        JSON.stringify({
-          data: [
-            {
-              asr: "17:10",
-              dhuhr: "13:02",
-              fajr: "03:28",
-              gregorianDateLongIso8601: "2026-07-05T00:00:00+03:00",
-              isha: "22:15",
-              maghrib: "20:34",
-              sunrise: "05:20",
-            },
-            {
-              asr: "17:11",
-              dhuhr: "13:02",
-              fajr: "03:30",
-              gregorianDateLongIso8601: "2026-07-06T00:00:00+03:00",
-              isha: "22:13",
-              maghrib: "20:33",
-              sunrise: "05:22",
-            },
-          ],
-          success: true,
-        }),
-        {
-          headers: { "content-type": "application/json" },
-          status: 200,
-        },
-      );
-    }
-
     return new Response(JSON.stringify({ message: "not found" }), {
       headers: { "content-type": "application/json" },
       status: 404,
@@ -173,47 +141,6 @@ function getSinglePrayerTimeRecord(payload: unknown, label: string) {
   return toAwqatPrayerTimeDayInput(payload[0], label);
 }
 
-function nextIsoDate(date: string) {
-  const next = new Date(`${date}T00:00:00Z`);
-
-  if (Number.isNaN(next.getTime())) {
-    throw new Error(`Awqat payload date ${date} is invalid.`);
-  }
-
-  next.setUTCDate(next.getUTCDate() + 1);
-  return next.toISOString().slice(0, 10);
-}
-
-function extractIsoDate(value: AwqatPrayerTimeDayInput) {
-  const match = value.gregorianDateLongIso8601.match(/^(\d{4}-\d{2}-\d{2})T/);
-
-  if (!match) {
-    throw new Error("Awqat gregorianDateLongIso8601 must include a calendar date.");
-  }
-
-  return match[1];
-}
-
-function findTomorrowFromMonthlyPayload(
-  monthlyPayload: unknown,
-  today: AwqatPrayerTimeDayInput,
-): AwqatPrayerTimeDayInput | null {
-  if (!Array.isArray(monthlyPayload)) {
-    throw new Error("Awqat monthly payload must be an array.");
-  }
-
-  const expectedTomorrowDate = nextIsoDate(extractIsoDate(today));
-
-  for (const item of monthlyPayload) {
-    const normalized = toAwqatPrayerTimeDayInput(item, "monthly");
-    if (extractIsoDate(normalized) === expectedTomorrowDate) {
-      return normalized;
-    }
-  }
-
-  return null;
-}
-
 function createDryRunCurrentSeed(): PrayerTimesCurrent {
   return {
     ...mockDisplayData.prayerTimes,
@@ -244,8 +171,6 @@ function printMappedOutput(mapped: PrayerTimesCurrent) {
   console.log(`manualOverride: ${String(mapped.manualOverride)}`);
   console.log("automaticTimes:");
   console.log(`  automaticDate: ${mapped.automaticTimes?.date ?? "null"}`);
-  console.log(`  tomorrowAvailable: ${mapped.automaticTimes?.tomorrow ? "yes" : "no"}`);
-  console.log(`  tomorrowFajr: ${mapped.automaticTimes?.tomorrow?.fajr ?? "null"}`);
 }
 
 async function main() {
@@ -258,19 +183,10 @@ async function main() {
   const dailyPayload = await client.getDailyPrayerTimes(LOCKED_CITY_ID);
   const today = getSinglePrayerTimeRecord(dailyPayload, "daily");
 
-  let tomorrow: AwqatPrayerTimeDayInput | null = null;
-  try {
-    const monthlyPayload = await client.getMonthlyPrayerTimes(LOCKED_CITY_ID);
-    tomorrow = findTomorrowFromMonthlyPayload(monthlyPayload, today);
-  } catch {
-    tomorrow = null;
-  }
-
   const mapped = mapAwqatToPrayerTimesDocument({
     current: createDryRunCurrentSeed(),
     fetchedAt: new Date().toISOString(),
     today,
-    tomorrow,
   });
 
   printMappedOutput(mapped);
