@@ -2,11 +2,14 @@ import { createPrayerTimeSyncRunner } from "./prayerTimeSyncShared.ts";
 import { createAladhanProvider } from "./aladhanProvider.ts";
 import type { PrayerTimeProviderResult } from "./prayerTimeProviderTypes.ts";
 import {
+  readPrayerTimeSourceSettings,
   readPrayerTimeSyncRuntimeOptions,
   type PrayerTimeSyncRuntimeOptions,
 } from "../../functions/src/prayerTimeSyncService.ts";
 import type { PrayerTimesCurrent } from "../../src/types/display.ts";
 import { describePrayerTimesForLog } from "./prayerTimesValidation.ts";
+import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
+import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
 
 interface FirestoreDocumentSnapshotLike {
   data: () => unknown;
@@ -15,7 +18,7 @@ interface FirestoreDocumentSnapshotLike {
 
 interface FirestoreDocumentLike {
   get: () => Promise<FirestoreDocumentSnapshotLike>;
-  set: (value: PrayerTimesCurrent) => Promise<unknown>;
+  set: (value: PrayerTimesCurrent, ...args: unknown[]) => Promise<unknown>;
 }
 
 interface FirestoreLike {
@@ -49,7 +52,7 @@ export async function runProductionPrayerTimeSync({
 }: RunProductionPrayerTimeSyncOptions) {
   const runtimeOptions = readRuntimeOptions(env);
   const { providerConfig, offsets } = runtimeOptions;
-  const ref = db.doc("prayerTimes/current");
+  const ref = db.doc(FIRESTORE_PATHS.prayerTimesCurrent);
   const executionTime = now ?? new Date();
 
   logInfo("[Prayer Times Sync] Starting");
@@ -71,7 +74,19 @@ export async function runProductionPrayerTimeSync({
   });
   logInfo(`  executionLocalDate: ${londonDateFormatter.format(executionTime)} (Europe/London)`);
   logInfo(`  executionUtc: ${executionTime.toISOString()}`);
-  logInfo("  docPath: prayerTimes/current");
+  logInfo(`  docPath: ${FIRESTORE_PATHS.prayerTimesCurrent}`);
+
+  const prayerTimeSourceSettings = await readPrayerTimeSourceSettings(db);
+  logInfo(`  configuredSource: ${prayerTimeSourceSettings.source}`);
+
+  if (prayerTimeSourceSettings.source !== "aladhan") {
+    logInfo(
+      `[Prayer Times Sync] Skipped: ${FIRESTORE_PATHS.settingsPrayerTimes} source is ${prayerTimeSourceSettings.source}`,
+    );
+    logInfo(`  settingsPath: ${FIRESTORE_PATHS.settingsPrayerTimes}`);
+    const snapshot = await ref.get();
+    return normalizePrayerTimesCurrent(snapshot.exists ? snapshot.data() : null);
+  }
 
   const providerResultLoader =
     fetchProviderResult ??
@@ -95,9 +110,16 @@ export async function runProductionPrayerTimeSync({
     logError,
   }).run();
 
-  logInfo(describePrayerTimesForLog(runnerResult, providerConfig.timezone, runnerResult.providerSource ?? "unknown", "prayerTimes/current"));
+  logInfo(
+    describePrayerTimesForLog(
+      runnerResult,
+      providerConfig.timezone,
+      runnerResult.providerSource ?? "unknown",
+      FIRESTORE_PATHS.prayerTimesCurrent,
+    ),
+  );
   logInfo("[Prayer Times Sync] Completed successfully");
-  logInfo(`  docPath: prayerTimes/current`);
+  logInfo(`  docPath: ${FIRESTORE_PATHS.prayerTimesCurrent}`);
   logInfo(`  source: ${runnerResult.providerSource ?? "unknown"}`);
 
   return runnerResult;

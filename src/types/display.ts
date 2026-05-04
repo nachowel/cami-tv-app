@@ -9,6 +9,7 @@ export type DailyContentType = "ayah" | "hadith";
 export type TickerType = "hadith" | "message";
 
 export type PrayerTimeSource = "aladhan" | "manual";
+export type PrayerTimeSourceSetting = PrayerTimeSource | "awqat-salah";
 export type WeatherConditionKey =
   | "weather_clear"
   | "weather_partly_cloudy"
@@ -80,6 +81,14 @@ export interface PrayerTimesCurrent {
   offsets: PrayerTimeOffsets;
   automaticTimes: PrayerTimesAutomaticSnapshot | null;
   validationStatus?: "valid";
+}
+
+export interface PrayerTimeSourceSettings {
+  source: PrayerTimeSourceSetting;
+  updatedAt: IsoDateTime | null;
+  updatedBy?: string;
+  cityId?: string;
+  cityName?: string;
 }
 
 export interface DailyContentCurrent {

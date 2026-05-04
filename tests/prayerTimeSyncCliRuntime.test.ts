@@ -47,8 +47,10 @@ function assertNoRestStyleFirestorePath(path: string) {
 function createFakeDb(initialValue: unknown) {
   const state = {
     paths: [] as string[],
-    value: initialValue,
-    writes: [] as unknown[],
+    valueByPath: {
+      "prayerTimes/current": initialValue,
+    } as Record<string, unknown>,
+    writes: [] as Array<{ path: string; value: unknown }>,
   };
 
   return {
@@ -59,13 +61,13 @@ function createFakeDb(initialValue: unknown) {
         return {
           async get() {
             return {
-              data: () => state.value,
-              exists: state.value != null,
+              data: () => state.valueByPath[path],
+              exists: state.valueByPath[path] != null,
             };
           },
           async set(value: unknown) {
-            state.value = value;
-            state.writes.push(value);
+            state.valueByPath[path] = value;
+            state.writes.push({ path, value });
           },
         };
       },
@@ -85,6 +87,7 @@ test("production prayer sync runtime logs the fixed SDK doc path and ignores RES
     fetchedAt: null,
     automaticTimes: null,
   });
+  state.valueByPath["settings/prayerTimes"] = { source: "aladhan" };
 
   await runProductionPrayerTimeSync({
     db,
@@ -101,7 +104,7 @@ test("production prayer sync runtime logs the fixed SDK doc path and ignores RES
     },
   });
 
-  assert.deepEqual([...new Set(state.paths)], ["prayerTimes/current"]);
+  assert.deepEqual([...new Set(state.paths)], ["prayerTimes/current", "settings/prayerTimes"]);
   for (const path of state.paths) {
     assertNoRestStyleFirestorePath(path);
   }
@@ -124,6 +127,7 @@ test("saved Firestore document has validationStatus valid and all backward-compa
     fetchedAt: null,
     automaticTimes: null,
   });
+  state.valueByPath["settings/prayerTimes"] = { source: "aladhan" };
 
   await runProductionPrayerTimeSync({
     db,
@@ -134,7 +138,7 @@ test("saved Firestore document has validationStatus valid and all backward-compa
   });
 
   assert.equal(state.writes.length, 1);
-  const saved = state.writes[0] as Record<string, unknown>;
+  const saved = state.writes[0]?.value as Record<string, unknown>;
 
   assert.ok("date" in saved, "backward-compatible: date field present");
   assert.ok("today" in saved, "backward-compatible: today field present");
@@ -192,4 +196,26 @@ test("cron schedule comment in workflow is accurate about UTC behavior", async (
   assert.match(yaml, /GitHub Actions always interprets the cron expression in UTC/i);
   assert.match(yaml, /02:00 UTC every day/i);
   assert.doesNotMatch(yaml, /UK 02:00 UTC = 03:00 BST/i);
+});
+
+test("production prayer sync runtime skips when settings/prayerTimes source is manual", async () => {
+  const logs: string[] = [];
+  const { db, state } = createFakeDb(mockDisplayData.prayerTimes);
+  state.valueByPath["settings/prayerTimes"] = { source: "manual" };
+
+  await runProductionPrayerTimeSync({
+    db,
+    env: {},
+    fetchProviderResult: async () => providerResult,
+    logError(message, error) {
+      logs.push(`${message}:${error instanceof Error ? error.message : String(error)}`);
+    },
+    logInfo(message) {
+      logs.push(message);
+    },
+  });
+
+  assert.equal(state.writes.length, 0);
+  assert.ok(logs.some((message) => /skipped/i.test(message)));
+  assert.ok(logs.some((message) => /manual/i.test(message)));
 });

@@ -38,6 +38,7 @@ import type {
   DisplayData,
   DisplaySettings,
   DonationCurrent,
+  PrayerTimeSourceSettings,
   PrayerTimesCurrent,
   PrayerTimesForDay,
   TickerCurrent,
@@ -48,12 +49,14 @@ import {
   fetchDailyContentCurrent,
   fetchDisplaySettings,
   fetchDonationCurrent,
+  fetchPrayerTimeSettings,
   fetchPrayerTimesCurrent,
   fetchTickerCurrent,
   saveAnnouncement,
   saveDailyContentCurrent,
   saveDisplaySettings,
   saveDonationCurrent,
+  savePrayerTimeSettings,
   savePrayerTimesCurrent,
   saveTickerCurrent,
 } from "../services/firestoreDisplayService.ts";
@@ -71,6 +74,7 @@ import {
   validatePrayerTime,
   validateTicker,
 } from "../utils/validation.ts";
+import { createDefaultPrayerTimeSourceSettings } from "../utils/prayerTimeSourceSettings.ts";
 
 type SectionStatusKey =
   | "language"
@@ -140,6 +144,9 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   );
   const [prayerTimesDraft, setPrayerTimesDraft] = useState<PrayerTimesForDay>(
     mockDisplayData.prayerTimes.today,
+  );
+  const [prayerTimeSourceSettings, setPrayerTimeSourceSettings] = useState<PrayerTimeSourceSettings>(
+    () => createDefaultPrayerTimeSourceSettings(),
   );
   const [dailyContent, setDailyContent] = useState<DailyContentCurrent>(mockDisplayData.dailyContent);
   const [dailyContentDraft, setDailyContentDraft] = useState(() =>
@@ -263,10 +270,19 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     async function loadAdminData() {
       setIsLoadingFirestoreData(true);
 
-      const [settingsResult, donationResult, prayerTimesResult, dailyContentResult, tickerResult, announcementsResult] =
+      const [
+        settingsResult,
+        donationResult,
+        prayerTimeSourceSettingsResult,
+        prayerTimesResult,
+        dailyContentResult,
+        tickerResult,
+        announcementsResult,
+      ] =
         await Promise.allSettled([
           fetchDisplaySettings(),
           fetchDonationCurrent(),
+          fetchPrayerTimeSettings(),
           fetchPrayerTimesCurrent(),
           fetchDailyContentCurrent(),
           fetchTickerCurrent(),
@@ -290,6 +306,11 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       );
 
       applyDisplayData(resolved.data);
+      setPrayerTimeSourceSettings(
+        prayerTimeSourceSettingsResult.status === "fulfilled"
+          ? prayerTimeSourceSettingsResult.value
+          : createDefaultPrayerTimeSourceSettings(),
+      );
       setFirestoreFallbackWarning(resolved.warning);
       setIsLoadingFirestoreData(false);
     }
@@ -525,6 +546,30 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         ? createInfoStatus(restoreResult.warningMessage)
         : createSavedStatus("Otomatik Aladhan modu etkinleştirildi."),
     );
+  }
+
+  function handlePrayerTimeSourceChange(nextSource: PrayerTimeSourceSettings["source"]) {
+    const nextSettings: PrayerTimeSourceSettings = {
+      ...prayerTimeSourceSettings,
+      source: nextSource,
+      updatedAt: new Date().toISOString(),
+      updatedBy: userEmail,
+    };
+
+    updateSectionStatus("prayerTimes", createSavingStatus("Kaydediliyor..."));
+
+    void commitAdminSectionSave({
+      isAuthenticated,
+      nextValue: nextSettings,
+      persist: savePrayerTimeSettings,
+      successMessage: "Prayer time source saved.",
+    }).then((result) => {
+      if (result.valueToApply) {
+        setPrayerTimeSourceSettings(result.valueToApply);
+      }
+
+      updateSectionStatus("prayerTimes", result.status);
+    });
   }
 
   async function handleDailyContentSubmit() {
@@ -774,7 +819,9 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             onAutomaticModeEnable={handleAutomaticPrayerTimesEnable}
             onChange={setPrayerTimesDraft}
             onMobileToggle={() => setActiveMobileSection("prayer-times")}
+            onSourceChange={handlePrayerTimeSourceChange}
             onSubmit={handlePrayerTimesSubmit}
+            prayerTimeSourceSettings={prayerTimeSourceSettings}
             prayerTimesCurrent={prayerTimesCurrent}
             prayerTimes={prayerTimesDraft}
             status={statusBySection.prayerTimes}

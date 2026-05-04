@@ -1,4 +1,9 @@
-import type { PrayerTimesCurrent, PrayerTimesForDay } from "../../types/display";
+import type {
+  PrayerTimeSourceSetting,
+  PrayerTimeSourceSettings,
+  PrayerTimesCurrent,
+  PrayerTimesForDay,
+} from "../../types/display";
 import { AdminStatusNotice, type SectionStatus } from "./AdminStatusNotice";
 import { AdminSectionCard } from "./AdminSectionCard";
 import {
@@ -11,7 +16,9 @@ interface PrayerTimesSectionProps {
   id?: string;
   mobileOpen?: boolean;
   onMobileToggle?: () => void;
+  onSourceChange: (nextSource: PrayerTimeSourceSetting) => void;
   prayerTimesCurrent: PrayerTimesCurrent;
+  prayerTimeSourceSettings: PrayerTimeSourceSettings;
   prayerTimes: PrayerTimesForDay;
   status: SectionStatus | null;
   onAutomaticModeEnable: () => void;
@@ -28,12 +35,24 @@ const prayerInputs: Array<{ key: keyof PrayerTimesForDay; label: string }> = [
   { key: "isha", label: "Isha / Yatsı" },
 ];
 
+const prayerTimeSourceOptions: Array<{ label: string; value: PrayerTimeSourceSetting }> = [
+  { label: "Manual Entry", value: "manual" },
+  { label: "Aladhan API", value: "aladhan" },
+  { label: "Awqat Salah API", value: "awqat-salah" },
+];
+
+function getPrayerTimeSourceLabel(source: PrayerTimeSourceSetting) {
+  return prayerTimeSourceOptions.find((option) => option.value === source)?.label ?? source;
+}
+
 export function PrayerTimesSection({
   errors,
   id,
   mobileOpen,
   onMobileToggle,
+  onSourceChange,
   prayerTimesCurrent,
+  prayerTimeSourceSettings,
   prayerTimes,
   status,
   onAutomaticModeEnable,
@@ -43,6 +62,12 @@ export function PrayerTimesSection({
   const modeState = getPrayerTimesAdminModeState(prayerTimesCurrent);
   const showRestoreAction = shouldShowAutomaticPrayerTimesRestoreAction(prayerTimesCurrent);
   const providerLabel = prayerTimesCurrent.providerSource ?? "yok";
+  const lastUpdatedLabel = prayerTimeSourceSettings.updatedAt
+    ? new Intl.DateTimeFormat("en-GB", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }).format(new Date(prayerTimeSourceSettings.updatedAt))
+    : "Not set yet";
 
   return (
     <AdminSectionCard
@@ -52,6 +77,51 @@ export function PrayerTimesSection({
       title="Namaz Vakitleri"
       description="Günlük namaz vakitlerini güncelleyin."
     >
+      <div className="mb-4 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              Active source: {getPrayerTimeSourceLabel(prayerTimeSourceSettings.source)}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Last updated: {lastUpdatedLabel}
+            </p>
+            {prayerTimeSourceSettings.cityName ? (
+              <p className="mt-1 text-xs text-slate-500">
+                City: {prayerTimeSourceSettings.cityName}
+              </p>
+            ) : null}
+          </div>
+
+          <label className="block sm:min-w-64">
+            <span className="text-sm font-semibold text-slate-700">Prayer time source</span>
+            <select
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm outline-none focus:border-emerald-700"
+              onChange={(event) => onSourceChange(event.target.value as PrayerTimeSourceSetting)}
+              value={prayerTimeSourceSettings.source}
+            >
+              {prayerTimeSourceOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {prayerTimeSourceSettings.source === "manual" ? (
+          <p className="mt-3 text-sm text-amber-700">
+            Automatic sync is disabled while Manual Entry is selected.
+          </p>
+        ) : null}
+
+        {prayerTimeSourceSettings.source === "awqat-salah" ? (
+          <p className="mt-3 text-sm text-amber-700">
+            Awqat Salah API sync is not implemented yet. This only saves the source setting for now.
+          </p>
+        ) : null}
+      </div>
+
       <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
         <p className="text-sm font-semibold text-slate-900">Geçerli mod: {modeState.label}</p>
         <p className="mt-1 text-sm text-slate-600">{modeState.description}</p>

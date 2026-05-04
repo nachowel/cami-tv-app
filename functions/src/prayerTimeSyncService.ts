@@ -8,6 +8,8 @@ import type {
 import { createPrayerTimeSyncRunner } from "../../scripts/prayerTimes/prayerTimeSyncShared.ts";
 import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 import type { PrayerTimeOffsets, PrayerTimesCurrent } from "../../src/types/display.ts";
+import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
+import { normalizePrayerTimeSourceSettings } from "../../src/utils/prayerTimeSourceSettings.ts";
 
 function getTrimmedEnv(name: string, env: NodeJS.ProcessEnv) {
   const value = env[name]?.trim();
@@ -47,11 +49,16 @@ interface FirestoreDocumentSnapshotLike {
 
 interface FirestoreDocumentLike {
   get: () => Promise<FirestoreDocumentSnapshotLike>;
-  set: (value: PrayerTimesCurrent) => Promise<void>;
+  set: (value: PrayerTimesCurrent) => Promise<unknown>;
 }
 
 interface FirestoreLike {
   doc: (path: string) => FirestoreDocumentLike;
+}
+
+export async function readPrayerTimeSourceSettings(db: FirestoreLike | Firestore) {
+  const snapshot = await db.doc(FIRESTORE_PATHS.settingsPrayerTimes).get();
+  return normalizePrayerTimeSourceSettings(snapshot.exists ? snapshot.data() : null);
 }
 
 export interface RunPrayerTimeSyncOptions {
@@ -105,6 +112,17 @@ export async function runPrayerTimeSync({
   providerConfig,
 }: RunPrayerTimeSyncOptions) {
   const firestorePath = FIRESTORE_PATHS.prayerTimesCurrent;
+  const prayerTimeSourceSettings = await readPrayerTimeSourceSettings(db);
+
+  if (prayerTimeSourceSettings.source !== "aladhan") {
+    logInfo(
+      `Prayer time sync skipped because ${FIRESTORE_PATHS.settingsPrayerTimes} source is ${prayerTimeSourceSettings.source}.`,
+    );
+
+    const currentSnapshot = await db.doc(firestorePath).get();
+    return normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
+  }
+
   const loadProviderResult =
     fetchProviderResult ??
     (() => {

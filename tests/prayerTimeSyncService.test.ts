@@ -44,11 +44,11 @@ function assertNoRestStyleFirestorePath(path: string) {
   assert.doesNotMatch(path, /\/documents\//);
 }
 
-function createFakeDb(initialValue: unknown) {
+function createFakeDb(initialDocs: Record<string, unknown>) {
   const state = {
+    docs: { ...initialDocs },
     paths: [] as string[],
-    value: initialValue,
-    writes: [] as unknown[],
+    writes: [] as Array<{ path: string; value: unknown }>,
   };
 
   return {
@@ -59,13 +59,13 @@ function createFakeDb(initialValue: unknown) {
         return {
           async get() {
             return {
-              data: () => state.value,
-              exists: state.value != null,
+              data: () => state.docs[path],
+              exists: state.docs[path] != null,
             };
           },
           async set(value: unknown) {
-            state.value = value;
-            state.writes.push(value);
+            state.docs[path] = value;
+            state.writes.push({ path, value });
           },
         };
       },
@@ -78,13 +78,18 @@ test("runPrayerTimeSync writes prayerTimes/current and logs success when manualO
   const infoLogs: string[] = [];
   const errorLogs: string[] = [];
   const { db, state } = createFakeDb({
-    ...mockDisplayData.prayerTimes,
-    manualOverride: false,
-    effectiveSource: "manual",
-    providerSource: null,
-    method: null,
-    fetchedAt: null,
-    automaticTimes: null,
+    [FIRESTORE_PATHS.prayerTimesCurrent]: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "manual",
+      providerSource: null,
+      method: null,
+      fetchedAt: null,
+      automaticTimes: null,
+    },
+    [FIRESTORE_PATHS.settingsPrayerTimes]: {
+      source: "aladhan",
+    },
   });
 
   const result = await runPrayerTimeSync({
@@ -101,8 +106,8 @@ test("runPrayerTimeSync writes prayerTimes/current and logs success when manualO
   assert.equal(result.effectiveSource, "aladhan");
   assert.equal(result.today.fajr, "04:32");
   assert.equal(state.writes.length, 1);
-  assert.equal((state.writes[0] as typeof result).today.fajr, "04:32");
-  assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.prayerTimesCurrent]);
+  assert.equal((state.writes[0]?.value as typeof result).today.fajr, "04:32");
+  assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.settingsPrayerTimes, FIRESTORE_PATHS.prayerTimesCurrent]);
   for (const path of state.paths) {
     assertNoRestStyleFirestorePath(path);
   }
@@ -116,7 +121,12 @@ test("runPrayerTimeSync writes prayerTimes/current and logs success when manualO
 test("runPrayerTimeSync performs no writes and logs a clear error when the provider fails", async () => {
   const infoLogs: string[] = [];
   const errorLogs: string[] = [];
-  const { db, state } = createFakeDb(mockDisplayData.prayerTimes);
+  const { db, state } = createFakeDb({
+    [FIRESTORE_PATHS.prayerTimesCurrent]: mockDisplayData.prayerTimes,
+    [FIRESTORE_PATHS.settingsPrayerTimes]: {
+      source: "aladhan",
+    },
+  });
 
   await assert.rejects(
     () =>
@@ -143,13 +153,18 @@ test("runPrayerTimeSync performs no writes and logs a clear error when the provi
 test("runPrayerTimeSync always uses prayerTimes/current before calling Firestore doc()", async () => {
   const infoLogs: string[] = [];
   const { db, state } = createFakeDb({
-    ...mockDisplayData.prayerTimes,
-    manualOverride: false,
-    effectiveSource: "manual",
-    providerSource: null,
-    method: null,
-    fetchedAt: null,
-    automaticTimes: null,
+    [FIRESTORE_PATHS.prayerTimesCurrent]: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "manual",
+      providerSource: null,
+      method: null,
+      fetchedAt: null,
+      automaticTimes: null,
+    },
+    [FIRESTORE_PATHS.settingsPrayerTimes]: {
+      source: "aladhan",
+    },
   });
 
   await runPrayerTimeSync({
@@ -160,9 +175,62 @@ test("runPrayerTimeSync always uses prayerTimes/current before calling Firestore
     },
   });
 
-  assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.prayerTimesCurrent]);
+  assert.deepEqual([...new Set(state.paths)], [FIRESTORE_PATHS.settingsPrayerTimes, FIRESTORE_PATHS.prayerTimesCurrent]);
   for (const path of state.paths) {
     assertNoRestStyleFirestorePath(path);
   }
   assert.match(infoLogs[0] ?? "", /Prayer times synced to prayerTimes\/current/);
+});
+
+test("runPrayerTimeSync defaults missing settings/prayerTimes to manual and skips without writing", async () => {
+  const infoLogs: string[] = [];
+  let providerCalls = 0;
+  const { db, state } = createFakeDb({
+    [FIRESTORE_PATHS.prayerTimesCurrent]: mockDisplayData.prayerTimes,
+  });
+
+  const result = await runPrayerTimeSync({
+    db,
+    fetchProviderResult: async () => {
+      providerCalls += 1;
+      return providerResult;
+    },
+    logInfo(message) {
+      infoLogs.push(message);
+    },
+  });
+
+  assert.equal(providerCalls, 0);
+  assert.equal(state.writes.length, 0);
+  assert.equal(result.today.fajr, mockDisplayData.prayerTimes.today.fajr);
+  assert.match(infoLogs[0] ?? "", /skipped/i);
+  assert.match(infoLogs[0] ?? "", /manual/);
+});
+
+test("runPrayerTimeSync exits without writing when source is awqat-salah", async () => {
+  const infoLogs: string[] = [];
+  let providerCalls = 0;
+  const { db, state } = createFakeDb({
+    [FIRESTORE_PATHS.prayerTimesCurrent]: mockDisplayData.prayerTimes,
+    [FIRESTORE_PATHS.settingsPrayerTimes]: {
+      source: "awqat-salah",
+    },
+  });
+
+  const result = await runPrayerTimeSync({
+    db,
+    fetchProviderResult: async () => {
+      providerCalls += 1;
+      return providerResult;
+    },
+    logInfo(message) {
+      infoLogs.push(message);
+    },
+  });
+
+  assert.equal(providerCalls, 0);
+  assert.equal(state.writes.length, 0);
+  assert.equal(result.today.fajr, mockDisplayData.prayerTimes.today.fajr);
+  assert.match(infoLogs[0] ?? "", /awqat-salah/);
+  assert.match(infoLogs[0] ?? "", /skipped/i);
 });

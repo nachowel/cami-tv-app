@@ -25,6 +25,7 @@ import type {
   DailyContentCurrent,
   DisplaySettings,
   DonationCurrent,
+  PrayerTimeSourceSettings,
   PrayerTimesCurrent,
   TickerCurrent,
 } from "../types/display";
@@ -34,6 +35,7 @@ import {
 } from "../shared/firestorePaths.ts";
 import { firebaseApp } from "./firebaseCore.ts";
 import { normalizePrayerTimesCurrent } from "../utils/prayerTimeDocument.ts";
+import { normalizePrayerTimeSourceSettings } from "../utils/prayerTimeSourceSettings.ts";
 
 export { FIRESTORE_PATHS, getAnnouncementDocumentPath } from "../shared/firestorePaths.ts";
 
@@ -224,6 +226,10 @@ export function getDonationCurrentRef(db?: ReadWriteFirestore) {
   return defaultReadWriteApi.doc(requireReadWriteDb(db), FIRESTORE_PATHS.donationCurrent);
 }
 
+export function getPrayerTimeSettingsRef(db?: ReadWriteFirestore) {
+  return defaultReadWriteApi.doc(requireReadWriteDb(db), FIRESTORE_PATHS.settingsPrayerTimes);
+}
+
 export function getPrayerTimesCurrentRef(db?: ReadWriteFirestore) {
   return defaultReadWriteApi.doc(requireReadWriteDb(db), FIRESTORE_PATHS.prayerTimesCurrent);
 }
@@ -250,6 +256,10 @@ function getRealtimeSettingsDisplayRef(db?: RealtimeFirestore) {
 
 function getRealtimeDonationCurrentRef(db?: RealtimeFirestore) {
   return docRealtime(requireRealtimeDb(db), FIRESTORE_PATHS.donationCurrent);
+}
+
+function getRealtimePrayerTimeSettingsRef(db?: RealtimeFirestore) {
+  return docRealtime(requireRealtimeDb(db), FIRESTORE_PATHS.settingsPrayerTimes);
 }
 
 function getRealtimePrayerTimesCurrentRef(db?: RealtimeFirestore) {
@@ -293,6 +303,10 @@ export function createFirestoreReadWriteClient<
     return api.doc(requireDb(), FIRESTORE_PATHS.donationCurrent);
   }
 
+  function getPrayerTimeSettingsRef() {
+    return api.doc(requireDb(), FIRESTORE_PATHS.settingsPrayerTimes);
+  }
+
   function getPrayerTimesRef() {
     return api.doc(requireDb(), FIRESTORE_PATHS.prayerTimesCurrent);
   }
@@ -324,6 +338,12 @@ export function createFirestoreReadWriteClient<
       return executeRead<DonationCurrent | null>("fetchDonationCurrent", async () => {
         const snapshot = await api.getDoc(getDonationRef());
         return readSnapshotData<DonationCurrent>(snapshot);
+      });
+    },
+    async fetchPrayerTimeSettings() {
+      return executeRead<PrayerTimeSourceSettings>("fetchPrayerTimeSettings", async () => {
+        const snapshot = await api.getDoc(getPrayerTimeSettingsRef());
+        return normalizePrayerTimeSourceSettings(readSnapshotData<unknown>(snapshot));
       });
     },
     async fetchPrayerTimesCurrent() {
@@ -359,6 +379,19 @@ export function createFirestoreReadWriteClient<
     },
     async saveDonationCurrent(donation: DonationCurrent) {
       await executeWrite("saveDonationCurrent", donation, () => api.setDoc(getDonationRef(), donation));
+    },
+    async savePrayerTimeSettings(settings: PrayerTimeSourceSettings) {
+      const firestoreValue = {
+        cityId: settings.cityId,
+        cityName: settings.cityName,
+        source: settings.source,
+        updatedAt: settings.updatedAt ? new Date(settings.updatedAt) : new Date(),
+        updatedBy: settings.updatedBy,
+      };
+
+      await executeWrite("savePrayerTimeSettings", firestoreValue, () =>
+        api.setDoc(getPrayerTimeSettingsRef(), firestoreValue),
+      );
     },
     async savePrayerTimesCurrent(prayerTimes: PrayerTimesCurrent) {
       await executeWrite("savePrayerTimesCurrent", prayerTimes, () =>
@@ -399,6 +432,10 @@ export function fetchDonationCurrent() {
   return defaultReadWriteClient.fetchDonationCurrent();
 }
 
+export function fetchPrayerTimeSettings() {
+  return defaultReadWriteClient.fetchPrayerTimeSettings();
+}
+
 export function fetchPrayerTimesCurrent() {
   return defaultReadWriteClient.fetchPrayerTimesCurrent();
 }
@@ -417,6 +454,10 @@ export function saveDisplaySettings(settings: DisplaySettings) {
 
 export function saveDonationCurrent(donation: DonationCurrent) {
   return defaultReadWriteClient.saveDonationCurrent(donation);
+}
+
+export function savePrayerTimeSettings(settings: PrayerTimeSourceSettings) {
+  return defaultReadWriteClient.savePrayerTimeSettings(settings);
 }
 
 export function savePrayerTimesCurrent(prayerTimes: PrayerTimesCurrent) {
@@ -505,6 +546,23 @@ export function subscribeToPrayerTimesCurrent(
         handleError,
       ),
     callback,
+    onError,
+  );
+}
+
+export function subscribeToPrayerTimeSettings(
+  callback: (value: PrayerTimeSourceSettings) => void,
+  onError?: (error: Error) => void,
+  db?: RealtimeFirestore,
+) {
+  return subscribeSingleton<PrayerTimeSourceSettings>(
+    (onValue, handleError) =>
+      onSnapshot(
+        getRealtimePrayerTimeSettingsRef(db),
+        (snapshot) => onValue(normalizePrayerTimeSourceSettings(snapshot.exists() ? snapshot.data() : null)),
+        handleError,
+      ),
+    (value) => callback(value ?? normalizePrayerTimeSourceSettings(null)),
     onError,
   );
 }

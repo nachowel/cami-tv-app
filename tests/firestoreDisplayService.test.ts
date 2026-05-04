@@ -15,6 +15,7 @@ test("FIRESTORE_PATHS matches the expected singleton document and collection pat
     dailyContentCurrent: "dailyContent/current",
     donationCurrent: "donation/current",
     prayerTimesCurrent: "prayerTimes/current",
+    settingsPrayerTimes: "settings/prayerTimes",
     prayerTimesSyncTest: "prayerTimes/syncTest",
     settingsDisplay: "settings/display",
     tickerCurrent: "ticker/current",
@@ -486,4 +487,158 @@ test("createFirestoreReadWriteClient normalizes older prayer time Firestore fiel
   assert.equal(result?.manualOverride, true);
   assert.equal(result?.effectiveSource, "manual");
   assert.equal(result?.providerSource, null);
+});
+
+test("createFirestoreReadWriteClient saves prayerTimes current through prayerTimes/current", async () => {
+  const calls: Array<{ kind: string; value: unknown }> = [];
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(currentDb, path) {
+        calls.push({ kind: "doc", value: { currentDb, path } });
+        return { currentDb, path };
+      },
+      getDoc: async () => ({
+        data: () => undefined,
+        exists: () => false,
+      }),
+      getDocs: async () => ({
+        docs: [],
+      }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async (ref, value) => {
+        calls.push({ kind: "setDoc", value: { ref, value } });
+      },
+    },
+    db,
+  );
+
+  await client.savePrayerTimesCurrent({
+    ...mockDisplayData.prayerTimes,
+    today: {
+      ...mockDisplayData.prayerTimes.today,
+      fajr: "05:55",
+    },
+    updated_at: "2026-05-04T12:00:00.000Z",
+  });
+
+  assert.deepEqual(calls, [
+    {
+      kind: "doc",
+      value: {
+        currentDb: db,
+        path: "prayerTimes/current",
+      },
+    },
+    {
+      kind: "setDoc",
+      value: {
+        ref: {
+          currentDb: db,
+          path: "prayerTimes/current",
+        },
+        value: {
+          ...mockDisplayData.prayerTimes,
+          today: {
+            ...mockDisplayData.prayerTimes.today,
+            fajr: "05:55",
+          },
+          updated_at: "2026-05-04T12:00:00.000Z",
+        },
+      },
+    },
+  ]);
+});
+
+test("createFirestoreReadWriteClient defaults missing prayer time source settings to manual and saves to settings/prayerTimes", async () => {
+  const calls: Array<{ kind: string; value: unknown }> = [];
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(currentDb, path) {
+        calls.push({ kind: "doc", value: { currentDb, path } });
+        return { currentDb, path };
+      },
+      getDoc: async () => ({
+        data: () => undefined,
+        exists: () => false,
+      }),
+      getDocs: async () => ({
+        docs: [],
+      }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async (ref, value) => {
+        calls.push({ kind: "setDoc", value: { ref, value } });
+      },
+    },
+    db,
+  );
+
+  const defaultSettings = await client.fetchPrayerTimeSettings();
+  assert.deepEqual(defaultSettings, {
+    cityId: undefined,
+    cityName: undefined,
+    source: "manual",
+    updatedAt: null,
+    updatedBy: undefined,
+  });
+
+  await client.savePrayerTimeSettings({
+    cityId: "london-1",
+    cityName: "London",
+    source: "awqat-salah",
+    updatedAt: "2026-05-04T12:00:00.000Z",
+    updatedBy: "admin@example.com",
+  });
+
+  assert.deepEqual(calls, [
+    {
+      kind: "doc",
+      value: {
+        currentDb: db,
+        path: "settings/prayerTimes",
+      },
+    },
+    {
+      kind: "doc",
+      value: {
+        currentDb: db,
+        path: "settings/prayerTimes",
+      },
+    },
+    {
+      kind: "setDoc",
+      value: {
+        ref: {
+          currentDb: db,
+          path: "settings/prayerTimes",
+        },
+        value: {
+          cityId: "london-1",
+          cityName: "London",
+          source: "awqat-salah",
+          updatedAt: new Date("2026-05-04T12:00:00.000Z"),
+          updatedBy: "admin@example.com",
+        },
+      },
+    },
+  ]);
 });

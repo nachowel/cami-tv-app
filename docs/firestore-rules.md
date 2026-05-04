@@ -9,6 +9,7 @@ These rules are deployment/admin configuration only. They are not frontend runti
 | Path | Public Read | Admin Write |
 |---|---|---|
 | `settings/display` | Yes | Yes |
+| `settings/prayerTimes` | No | Yes |
 | `donation/current` | Yes | Yes |
 | `prayerTimes/current` | Yes | Yes |
 | `dailyContent/current` | Yes | Yes |
@@ -16,8 +17,9 @@ These rules are deployment/admin configuration only. They are not frontend runti
 | `announcements/{announcementId}` | Yes | Yes |
 | All other paths | No | No |
 
-- **Public read**: Unauthenticated clients (TV display) can read all six document paths.
+- **Public read**: Unauthenticated clients (TV display) can read the public display documents only.
 - **Admin write**: Only authenticated Firebase users with the `admin: true` custom claim can write.
+- **Admin-only settings**: `settings/prayerTimes` is readable and writable only by admins. The current TV display does not need this document.
 - **Deny all**: Every other read and write is denied by the catch-all rule.
 
 ### Admin Claim Requirement
@@ -49,15 +51,15 @@ Because [firebase.json](/firebase.json) points Firestore to `firestore.rules`, t
 
 ### Deployment Checklist
 
-After adding or changing Firestore paths (e.g. `ticker/current`):
+After adding or changing Firestore paths (e.g. `settings/prayerTimes`):
 
-1. Confirm the path is listed in `firestore.rules` with `allow read: if true; allow write: if isAdmin();`
+1. Confirm the path is listed in `firestore.rules` with the intended access model.
 2. Confirm the path is listed in `FIRESTORE_PATHS` in `src/shared/firestorePaths.ts`
 3. Run `firebase deploy --only firestore:rules --project <your-project-id>`
 4. Verify on the Firebase Console that the deployed rules match the local file
-5. Open `/tv` without logging in and confirm Firestore-backed data loads
-6. Sign in as an admin user and confirm reads and writes succeed
-7. Sign in as a non-admin user and confirm writes are denied
+5. Open `/tv` without logging in and confirm Firestore-backed public data loads
+6. Sign in as an admin user and confirm reads and writes succeed, including `settings/prayerTimes`
+7. Sign in as a non-admin user and confirm protected writes are denied
 
 ## Admin Claim Provisioning
 

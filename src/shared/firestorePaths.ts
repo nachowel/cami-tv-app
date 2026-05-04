@@ -5,6 +5,7 @@ export const FIRESTORE_PATHS = {
   prayerTimesCurrent: "prayerTimes/current",
   prayerTimesSyncTest: "prayerTimes/syncTest",
   settingsDisplay: "settings/display",
+  settingsPrayerTimes: "settings/prayerTimes",
   tickerCurrent: "ticker/current",
 } as const;
 
