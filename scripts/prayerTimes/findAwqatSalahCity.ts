@@ -14,11 +14,19 @@ import {
 
 type AwqatCityDiscoveryTestMode =
   | "city-discovery-fallback-only"
+  | "city-discovery-country-debug"
   | "city-discovery-london"
   | "city-discovery-no-country";
 
+type AwqatCityDiscoveryDebugMode = "country-list";
+
 function createMockFetch(mode: AwqatCityDiscoveryTestMode): typeof fetch {
   const countriesByMode: Record<AwqatCityDiscoveryTestMode, Array<Record<string, unknown>>> = {
+    "city-discovery-country-debug": [
+      { code: "TR", id: 1, name: "Türkiye" },
+      { code: "GB", id: 2, name: "İngiltere" },
+      { code: "DE", id: 3, name: "Almanya" },
+    ],
     "city-discovery-fallback-only": [
       { code: "GB", id: 44, name: "United Kingdom" },
     ],
@@ -157,7 +165,8 @@ function resolveFetchImplFromEnv(env: NodeJS.ProcessEnv) {
   }
 
   if (
-    mode !== "city-discovery-fallback-only"
+    mode !== "city-discovery-country-debug"
+    && mode !== "city-discovery-fallback-only"
     && mode !== "city-discovery-london"
     && mode !== "city-discovery-no-country"
   ) {
@@ -165,6 +174,27 @@ function resolveFetchImplFromEnv(env: NodeJS.ProcessEnv) {
   }
 
   return createMockFetch(mode);
+}
+
+function resolveDebugModeFromEnv(env: NodeJS.ProcessEnv) {
+  const mode = env.AWQAT_SALAH_DEBUG_MODE;
+
+  if (!mode) {
+    return null;
+  }
+
+  if (mode !== "country-list") {
+    throw new Error(`Unsupported AWQAT_SALAH_DEBUG_MODE value: ${mode}.`);
+  }
+
+  return mode satisfies AwqatCityDiscoveryDebugMode;
+}
+
+function formatCountry(country: AwqatSalahPlace) {
+  return [
+    `countryId: ${country.id}`,
+    `countryName: ${country.name}`,
+  ].join("\n");
 }
 
 function formatCandidate(candidate: AwqatCityCandidate) {
@@ -231,6 +261,7 @@ async function collectCandidates(
 async function main() {
   const credentials = readAwqatSalahCredentialsFromEnv();
   const fetchImpl = resolveFetchImplFromEnv(process.env);
+  const debugMode = resolveDebugModeFromEnv(process.env);
   const client = createAwqatSalahClient(
     fetchImpl
       ? {
@@ -242,6 +273,17 @@ async function main() {
   await client.login(credentials);
 
   const countries = await client.getCountries();
+
+  if (debugMode === "country-list") {
+    console.log("DEBUG: Full country list");
+
+    for (const country of countries) {
+      console.log(formatCountry(country));
+    }
+
+    return;
+  }
+
   const matchedCountries = matchAwqatCountryCandidates(countries);
 
   if (matchedCountries.length === 0) {

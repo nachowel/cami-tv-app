@@ -78,3 +78,34 @@ test("Awqat Salah city discovery prints fallback candidates when no London or Be
   assert.match(output, /cityName:\s*Manchester/);
   assert.doesNotMatch(output, /Best match:/);
 });
+
+test("Awqat Salah city discovery debug mode prints the full unfiltered country list safely", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["--experimental-strip-types", "scripts/prayerTimes/findAwqatSalahCity.ts"],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        AWQAT_SALAH_DEBUG_MODE: "country-list",
+        AWQAT_SALAH_PASSWORD: "secret-password",
+        AWQAT_SALAH_USERNAME: "secret-user",
+        AWQAT_SALAH_TEST_MODE: "city-discovery-country-debug",
+      },
+    },
+  );
+
+  assert.equal(result.status, 0);
+  const output = result.stdout + result.stderr;
+  assert.match(output, /DEBUG: Full country list/);
+  assert.match(output, /countryId:\s*1/);
+  assert.match(output, /countryName:\s*Türkiye/);
+  assert.match(output, /countryId:\s*2/);
+  assert.match(output, /countryName:\s*İngiltere/);
+  assert.doesNotMatch(output, /Best match:/);
+  assert.doesNotMatch(output, /Fallback candidates:/);
+  assert.doesNotMatch(output, /secret-user/);
+  assert.doesNotMatch(output, /secret-password/);
+  assert.doesNotMatch(output, /access-secret-token/);
+});
