@@ -6,10 +6,12 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
     "types": ["node"],
     "skipLibCheck": true,
     "strict": true,
-    "noEmit": true,
+    "noEmit": false,
+    "outDir": "./dist",
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },

@@ -6,14 +6,14 @@
   "scripts": {
     "admin:set-claim": "node --experimental-strip-types scripts/auth/setAdminClaim.ts",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "vite build && tsc -b",
     "prayer-times:sync": "node --experimental-strip-types scripts/prayerTimes/syncPrayerTimes.ts",
     "prayer-times:verify-sync": "node --experimental-strip-types scripts/prayerTimes/verifyPrayerTimeSync.ts",
     "seed:firestore": "node --experimental-strip-types scripts/firestore/seedFirestore.ts",
     "test:unit": "node --experimental-strip-types --test tests/*.test.ts",
     "typecheck": "tsc -b --pretty false",
     "lint": "tsc -b --pretty false",
-    "prayer-times:awqat:sync": "tsx scripts/prayerTimes/syncAwqatSalah.ts"
+    "prayer-times:awqat:sync": "node dist/scripts/prayerTimes/syncAwqatSalah.js"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
