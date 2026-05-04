@@ -2,7 +2,6 @@ import { useTranslation } from "../../i18n/useTranslation";
 import type { DisplayLanguage, PrayerTimesCurrent, PrayerTimesForDay } from "../../types/display";
 import type { TranslationKey } from "../../i18n/translations";
 import type { PrayerName } from "../../utils/prayerTimes";
-import { toPrayerProviderAlias } from "../../utils/prayerTimeDocument.ts";
 
 interface PrayerTimesPanelProps {
   prayerTimes: PrayerTimesCurrent;
@@ -29,7 +28,7 @@ function formatUpdateTime(isoDateTime: string): string {
 export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer }: PrayerTimesPanelProps) {
   const { t } = useTranslation(language);
   const today = prayerTimes.today;
-  const providerAlias = toPrayerProviderAlias(prayerTimes.provider ?? prayerTimes.providerSource);
+  const providerAlias = prayerTimes.provider;
   const providerLabel =
     providerAlias === "awqat"
       ? "Awqat"

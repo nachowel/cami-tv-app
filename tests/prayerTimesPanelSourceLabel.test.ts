@@ -13,13 +13,16 @@ const tvDisplaySource = readFileSync(
 );
 
 test("PrayerTimesPanel derives the automatic provider label from Firestore prayer data", () => {
-  assert.match(prayerTimesPanelSource, /prayerTimes\.provider/);
+  assert.match(prayerTimesPanelSource, /const providerAlias = prayerTimes\.provider/);
   assert.match(prayerTimesPanelSource, /Geçerli mod:/);
+  assert.doesNotMatch(prayerTimesPanelSource, /prayerTimes\.providerSource/);
   assert.doesNotMatch(prayerTimesPanelSource, /const sourceLabel = prayerTimes\.effectiveSource === "manual" \? "Manual" : "Aladhan"/);
 });
 
 test("TvDisplay logs the active prayer source from Firestore data", () => {
+  assert.match(tvDisplaySource, /FULL PRAYER DATA/);
   assert.match(tvDisplaySource, /\[PRAYER SOURCE\]/);
   assert.match(tvDisplaySource, /displayData\.prayerTimes\.provider/);
   assert.match(tvDisplaySource, /displayData\.prayerTimes\.updatedAt/);
+  assert.match(tvDisplaySource, /provider missing on prayerTimes\/current/);
 });
