@@ -177,3 +177,32 @@ test("Awqat mapper never preserves current.tomorrow — always outputs null", ()
   assert.equal(result.tomorrow, null);
   assert.equal(result.automaticTimes?.tomorrow, null);
 });
+
+test("Awqat mapper populates both top-level today and automaticTimes.today with identical HH:MM values", () => {
+  const result = mapAwqatToPrayerTimesDocument({
+    current: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "manual",
+      providerSource: null,
+      fetchedAt: null,
+      method: null,
+      automaticTimes: null,
+    },
+    fetchedAt,
+    today: awqatToday,
+  });
+
+  const expectedToday = {
+    fajr: "03:28",
+    sunrise: "05:20",
+    dhuhr: "13:02",
+    asr: "17:10",
+    maghrib: "20:34",
+    isha: "22:15",
+  };
+
+  assert.deepEqual(result.today, expectedToday);
+  assert.deepEqual(result.automaticTimes?.today, expectedToday);
+  assert.deepEqual(result.today, result.automaticTimes?.today);
+});

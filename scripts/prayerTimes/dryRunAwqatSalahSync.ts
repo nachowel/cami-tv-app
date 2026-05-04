@@ -171,6 +171,8 @@ function printMappedOutput(mapped: PrayerTimesCurrent) {
   console.log(`manualOverride: ${String(mapped.manualOverride)}`);
   console.log("automaticTimes:");
   console.log(`  automaticDate: ${mapped.automaticTimes?.date ?? "null"}`);
+  console.log(`  automaticFajr: ${mapped.automaticTimes?.today?.fajr ?? "null"}`);
+  console.log(`  automaticMaghrib: ${mapped.automaticTimes?.today?.maghrib ?? "null"}`);
 }
 
 async function main() {
