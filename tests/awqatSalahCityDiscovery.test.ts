@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   buildAwqatCityDiscoveryShortlist,
+  filterAwqatCityCandidatesForDebugSearch,
   matchAwqatCountryCandidates,
   type AwqatCityCandidate,
 } from "../scripts/prayerTimes/awqatSalahCityDiscovery.ts";
@@ -74,6 +75,109 @@ test("city discovery shortlist ranks exact London first, then London contains, t
     ["East London", "North London", "Bexley"],
   );
   assert.equal(result.fallbackCandidates.length, 10);
+});
+
+test("LONDON ranks above LONDONDERRY and LONDONDERRY stays fallback only", () => {
+  const result = buildAwqatCityDiscoveryShortlist([
+    {
+      city: { id: 901, name: "LONDONDERRY" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 10, name: "Greater London" },
+    },
+    {
+      city: { id: 101, name: "LONDON" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 10, name: "Greater London" },
+    },
+  ]);
+
+  assert.equal(result.preferredMatchFound, true);
+  assert.equal(result.bestMatch?.city.name, "LONDON");
+  assert.deepEqual(result.fallbackCandidates.map((candidate) => candidate.city.name), ["LONDONDERRY"]);
+});
+
+test("LONDRA ranks above LONDONDERRY", () => {
+  const result = buildAwqatCityDiscoveryShortlist([
+    {
+      city: { id: 902, name: "LONDONDERRY" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 10, name: "Greater London" },
+    },
+    {
+      city: { id: 102, name: "LONDRA" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 10, name: "Greater London" },
+    },
+  ]);
+
+  assert.equal(result.preferredMatchFound, true);
+  assert.equal(result.bestMatch?.city.name, "LONDRA");
+  assert.deepEqual(result.fallbackCandidates.map((candidate) => candidate.city.name), ["LONDONDERRY"]);
+});
+
+test("LONDONDERRY alone is fallback only and not a preferred match", () => {
+  const result = buildAwqatCityDiscoveryShortlist([
+    {
+      city: { id: 903, name: "LONDONDERRY" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 10, name: "Northern Ireland" },
+    },
+  ]);
+
+  assert.equal(result.preferredMatchFound, false);
+  assert.equal(result.bestMatch, null);
+  assert.deepEqual(result.fallbackCandidates.map((candidate) => candidate.city.name), ["LONDONDERRY"]);
+});
+
+test("BEXLEY ranks as a preferred target when present", () => {
+  const result = buildAwqatCityDiscoveryShortlist([
+    {
+      city: { id: 701, name: "Manchester" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 55, name: "England Region" },
+    },
+    {
+      city: { id: 501, name: "BEXLEY" },
+      country: { id: 15, name: "INGILTERE" },
+      state: { id: 10, name: "Greater London" },
+    },
+  ]);
+
+  assert.equal(result.preferredMatchFound, true);
+  assert.equal(result.bestMatch?.city.name, "BEXLEY");
+});
+
+test("debug search finds UK city names containing LON, LOND, BEX, and BEXLEY patterns", () => {
+  const result = filterAwqatCityCandidatesForDebugSearch(
+    [
+      {
+        city: { id: 101, name: "LONDON" },
+        country: { id: 15, name: "INGILTERE" },
+      },
+      {
+        city: { id: 102, name: "LONDRA" },
+        country: { id: 15, name: "INGILTERE" },
+      },
+      {
+        city: { id: 103, name: "LONDONDERRY" },
+        country: { id: 15, name: "INGILTERE" },
+      },
+      {
+        city: { id: 104, name: "BEXLEY" },
+        country: { id: 15, name: "INGILTERE" },
+      },
+      {
+        city: { id: 105, name: "Manchester" },
+        country: { id: 15, name: "INGILTERE" },
+      },
+    ],
+    ["LON", "LOND", "BEX", "BEXLEY"],
+  );
+
+  assert.deepEqual(
+    result.map((candidate) => candidate.city.name),
+    ["LONDON", "LONDRA", "LONDONDERRY", "BEXLEY"],
+  );
 });
 
 test("city discovery shortlist returns fallback candidates without pretending a preferred match exists", () => {

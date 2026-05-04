@@ -13,7 +13,11 @@ export interface AwqatCityDiscoveryShortlist {
   preferredMatchFound: boolean;
 }
 
-function normalizeText(value: string) {
+const EXACT_LONDON_TARGETS = new Set(["LONDON", "LONDRA"]);
+const WORD_BOUNDARY_LONDON_TARGETS = new Set(["LONDON", "LONDRA"]);
+const PREFERRED_BEXLEY_TARGETS = new Set(["BEXLEY"]);
+
+export function normalizeAwqatSearchText(value: string) {
   return value
     .trim()
     .toLocaleUpperCase("tr-TR")
@@ -28,6 +32,18 @@ function normalizeText(value: string) {
     .replace(/\p{Diacritic}/gu, "")
     .replace(/[^A-Z0-9]+/g, " ")
     .trim();
+}
+
+function normalizeText(value: string) {
+  return normalizeAwqatSearchText(value);
+}
+
+function getNormalizedWordTokens(value: string) {
+  const normalized = normalizeText(value);
+
+  return normalized.length > 0
+    ? normalized.split(/\s+/)
+    : [];
 }
 
 function compareNames(left: string, right: string) {
@@ -82,16 +98,17 @@ function getCountryMatchScore(country: AwqatSalahPlace) {
 
 function getCityCandidateTier(candidate: AwqatCityCandidate) {
   const cityName = normalizeText(candidate.city.name);
+  const tokens = getNormalizedWordTokens(candidate.city.name);
 
-  if (cityName === "LONDON") {
+  if (EXACT_LONDON_TARGETS.has(cityName)) {
     return 0;
   }
 
-  if (cityName.includes("LONDON")) {
+  if (tokens.some((token) => WORD_BOUNDARY_LONDON_TARGETS.has(token))) {
     return 1;
   }
 
-  if (cityName.includes("BEXLEY")) {
+  if (tokens.some((token) => PREFERRED_BEXLEY_TARGETS.has(token))) {
     return 2;
   }
 
@@ -162,4 +179,18 @@ export function buildAwqatCityDiscoveryShortlist(
       .slice(0, maxFallbackCandidates),
     preferredMatchFound: true,
   };
+}
+
+export function filterAwqatCityCandidatesForDebugSearch(
+  candidates: AwqatCityCandidate[],
+  patterns: string[],
+) {
+  const normalizedPatterns = patterns
+    .map((pattern) => normalizeText(pattern))
+    .filter((pattern) => pattern.length > 0);
+
+  return candidates.filter((candidate) => {
+    const normalizedCityName = normalizeText(candidate.city.name);
+    return normalizedPatterns.some((pattern) => normalizedCityName.includes(pattern));
+  });
 }

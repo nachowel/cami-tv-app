@@ -8,6 +8,7 @@ import {
 } from "./awqatSalahClient.ts";
 import {
   buildAwqatCityDiscoveryShortlist,
+  filterAwqatCityCandidatesForDebugSearch,
   matchAwqatCountryCandidates,
   type AwqatCityCandidate,
 } from "./awqatSalahCityDiscovery.ts";
@@ -19,6 +20,7 @@ type AwqatCityDiscoveryTestMode =
   | "city-discovery-no-country";
 
 type AwqatCityDiscoveryDebugMode = "country-list";
+const CITY_SEARCH_DEBUG_PATTERNS = ["LON", "LOND", "BEX", "BEXLEY"] as const;
 
 function createMockFetch(mode: AwqatCityDiscoveryTestMode): typeof fetch {
   const countriesByMode: Record<AwqatCityDiscoveryTestMode, Array<Record<string, unknown>>> = {
@@ -95,6 +97,7 @@ function createMockFetch(mode: AwqatCityDiscoveryTestMode): typeof fetch {
             ? []
             : [
                 { code: "LON", id: 101, name: "London" },
+                { code: "LONTR", id: 102, name: "Londra" },
                 { code: "ELON", id: 301, name: "East London" },
                 { code: "BEX", id: 501, name: "Bexley" },
               ],
@@ -115,11 +118,14 @@ function createMockFetch(mode: AwqatCityDiscoveryTestMode): typeof fetch {
                 { code: "MAN", id: 700, name: "Manchester" },
                 { code: "LEE", id: 701, name: "Leeds" },
               ]
-            : Array.from({ length: 11 }, (_, index) => ({
-                code: `FB${index + 1}`,
-                id: 800 + index,
-                name: `Fallback ${index + 1}`,
-              })),
+            : [
+                { code: "LOND", id: 750, name: "Londonderry" },
+                ...Array.from({ length: 11 }, (_, index) => ({
+                  code: `FB${index + 1}`,
+                  id: 800 + index,
+                  name: `Fallback ${index + 1}`,
+                })),
+              ],
           success: true,
         }),
         {
@@ -184,6 +190,9 @@ function resolveDebugModeFromEnv(env: NodeJS.ProcessEnv) {
   }
 
   if (mode !== "country-list") {
+    if (mode === "uk-city-search") {
+      return mode;
+    }
     throw new Error(`Unsupported AWQAT_SALAH_DEBUG_MODE value: ${mode}.`);
   }
 
@@ -194,6 +203,13 @@ function formatCountry(country: AwqatSalahPlace) {
   return [
     `countryId: ${country.id}`,
     `countryName: ${country.name}`,
+  ].join("\n");
+}
+
+function formatDebugCityCandidate(candidate: AwqatCityCandidate) {
+  return [
+    `cityId: ${candidate.city.id}`,
+    `cityName: ${candidate.city.name}`,
   ].join("\n");
 }
 
@@ -291,6 +307,19 @@ async function main() {
   }
 
   const candidates = await collectCandidates(client, matchedCountries);
+
+  if (debugMode === "uk-city-search") {
+    const debugCandidates = filterAwqatCityCandidatesForDebugSearch(candidates, [...CITY_SEARCH_DEBUG_PATTERNS]);
+    console.log("DEBUG: UK city names matching search patterns");
+    console.log(`Patterns: ${CITY_SEARCH_DEBUG_PATTERNS.join(", ")}`);
+
+    for (const candidate of debugCandidates) {
+      console.log(formatDebugCityCandidate(candidate));
+    }
+
+    return;
+  }
+
   const shortlist = buildAwqatCityDiscoveryShortlist(candidates, 10);
   const detailedBestMatch = shortlist.bestMatch
     ? (await attachCityDetails(client, [shortlist.bestMatch]))[0] ?? null

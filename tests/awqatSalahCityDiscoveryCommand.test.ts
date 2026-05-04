@@ -109,3 +109,32 @@ test("Awqat Salah city discovery debug mode prints the full unfiltered country l
   assert.doesNotMatch(output, /secret-password/);
   assert.doesNotMatch(output, /access-secret-token/);
 });
+
+test("Awqat Salah city discovery debug search mode prints UK city names containing LON and BEX patterns", () => {
+  const result = spawnSync(
+    process.execPath,
+    ["--experimental-strip-types", "scripts/prayerTimes/findAwqatSalahCity.ts"],
+    {
+      cwd: process.cwd(),
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        AWQAT_SALAH_DEBUG_MODE: "uk-city-search",
+        AWQAT_SALAH_PASSWORD: "secret-password",
+        AWQAT_SALAH_USERNAME: "secret-user",
+        AWQAT_SALAH_TEST_MODE: "city-discovery-london",
+      },
+    },
+  );
+
+  assert.equal(result.status, 0);
+  const output = result.stdout + result.stderr;
+  assert.match(output, /DEBUG: UK city names matching search patterns/);
+  assert.match(output, /Patterns: LON, LOND, BEX, BEXLEY/);
+  assert.match(output, /cityName:\s*London/);
+  assert.match(output, /cityName:\s*Londra/);
+  assert.match(output, /cityName:\s*Londonderry/);
+  assert.match(output, /cityName:\s*Bexley/);
+  assert.doesNotMatch(output, /secret-user/);
+  assert.doesNotMatch(output, /secret-password/);
+});
