@@ -1,0 +1,52 @@
+name: Awqat Salah Prayer Times Sync
+
+on:
+  workflow_dispatch:
+  schedule:
+    # UTC cron — GitHub Actions always interprets the cron expression in UTC.
+    # The timezone field only affects how the "scheduled" trigger time is displayed
+    # in the GitHub UI; the actual job always runs at the UTC time specified.
+    # So "0 2 * * *" means 02:00 UTC every day:
+    #   - Winter (GMT): 02:00 UTC = 02:00 UK local
+    #   - Summer (BST, +1h offset): 02:00 UTC = 03:00 UK local
+    - cron: "0 2 * * *"
+      timezone: "Europe/London"
+
+permissions:
+  contents: read
+
+jobs:
+  sync-prayer-times:
+    runs-on: ubuntu-latest
+    env:
+      FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+      GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
+      AWQAT_SALAH_USERNAME: ${{ secrets.AWQAT_SALAH_USERNAME }}
+      AWQAT_SALAH_PASSWORD: ${{ secrets.AWQAT_SALAH_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Write Firebase service account credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}' > "$GOOGLE_APPLICATION_CREDENTIALS"
+          chmod 600 "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Sync prayer times
+        run: npm run prayer-times:awqat:sync
+
+      - name: Remove Firebase service account credentials
+        if: always()
+        shell: bash
+        run: rm -f "$GOOGLE_APPLICATION_CREDENTIALS"

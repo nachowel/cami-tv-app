@@ -12,7 +12,8 @@
     "seed:firestore": "node --experimental-strip-types scripts/firestore/seedFirestore.ts",
     "test:unit": "node --experimental-strip-types --test tests/*.test.ts",
     "typecheck": "tsc -b --pretty false",
-    "lint": "tsc -b --pretty false"
+    "lint": "tsc -b --pretty false",
+    "prayer-times:awqat:sync": "tsx scripts/prayerTimes/syncAwqatSalah.ts"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^5.0.0",
