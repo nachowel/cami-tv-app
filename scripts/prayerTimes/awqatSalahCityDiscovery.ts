@@ -15,10 +15,18 @@ export interface AwqatCityDiscoveryShortlist {
 
 function normalizeText(value: string) {
   return value
+    .trim()
+    .toLocaleUpperCase("tr-TR")
+    .replace(/İ/g, "I")
+    .replace(/I/g, "I")
+    .replace(/Ğ/g, "G")
+    .replace(/Ü/g, "U")
+    .replace(/Ş/g, "S")
+    .replace(/Ö/g, "O")
+    .replace(/Ç/g, "C")
     .normalize("NFD")
     .replace(/\p{Diacritic}/gu, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/[^A-Z0-9]+/g, " ")
     .trim();
 }
 
@@ -29,23 +37,43 @@ function compareNames(left: string, right: string) {
 function getCountryMatchScore(country: AwqatSalahPlace) {
   const name = normalizeText(country.name);
 
-  if (name === "united kingdom") {
+  if (name === "INGILTERE") {
+    return 450;
+  }
+
+  if (name === "INGILIZTERE") {
+    return 430;
+  }
+
+  if (name === "UNITED KINGDOM") {
     return 400;
   }
 
-  if (name === "uk") {
+  if (name === "GREAT BRITAIN") {
+    return 375;
+  }
+
+  if (name === "UK") {
     return 350;
   }
 
-  if (name === "england") {
+  if (name === "ENGLAND") {
     return 300;
   }
 
-  if (name.includes("united kingdom")) {
+  if (name.includes("UNITED KINGDOM")) {
     return 250;
   }
 
-  if (name.includes("england")) {
+  if (name.includes("GREAT BRITAIN")) {
+    return 225;
+  }
+
+  if (name.includes("INGILTERE") || name.includes("INGILIZTERE")) {
+    return 215;
+  }
+
+  if (name.includes("ENGLAND")) {
     return 200;
   }
 
@@ -55,15 +83,15 @@ function getCountryMatchScore(country: AwqatSalahPlace) {
 function getCityCandidateTier(candidate: AwqatCityCandidate) {
   const cityName = normalizeText(candidate.city.name);
 
-  if (cityName === "london") {
+  if (cityName === "LONDON") {
     return 0;
   }
 
-  if (cityName.includes("london")) {
+  if (cityName.includes("LONDON")) {
     return 1;
   }
 
-  if (cityName.includes("bexley")) {
+  if (cityName.includes("BEXLEY")) {
     return 2;
   }
 

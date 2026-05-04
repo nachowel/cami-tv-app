@@ -12,13 +12,28 @@ test("country matching handles United Kingdom, UK, and England variants", () => 
     { code: "TR", id: 90, name: "Turkiye" },
     { code: "GB", id: 44, name: "United Kingdom" },
     { code: "UK", id: 45, name: "UK" },
+    { code: "GBR", id: 47, name: "Great Britain" },
     { code: "ENG", id: 46, name: "England" },
   ]);
 
-  assert.deepEqual(
-    result.map((country) => country.name),
-    ["United Kingdom", "UK", "England"],
-  );
+  assert.deepEqual(result.map((country) => country.name), [
+    "United Kingdom",
+    "Great Britain",
+    "UK",
+    "England",
+  ]);
+});
+
+test("country matching includes real Diyanet countryId 15 for INGILTERE variants", () => {
+  const result = matchAwqatCountryCandidates([
+    { code: "TR", id: 90, name: "Turkiye" },
+    { code: "GB", id: 15, name: "INGILTERE" },
+    { code: "GB2", id: 16, name: "İNGİLTERE" },
+    { code: "GB3", id: 17, name: "INGILIZTERE" },
+  ]);
+
+  assert.equal(result[0]?.id, 15);
+  assert.deepEqual(result.map((country) => country.id), [15, 16, 17]);
 });
 
 test("city discovery shortlist ranks exact London first, then London contains, then Bexley, then fallback candidates", () => {

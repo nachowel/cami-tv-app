@@ -28,11 +28,11 @@ function createMockFetch(mode: AwqatCityDiscoveryTestMode): typeof fetch {
       { code: "DE", id: 3, name: "Almanya" },
     ],
     "city-discovery-fallback-only": [
-      { code: "GB", id: 44, name: "United Kingdom" },
+      { code: "GB", id: 15, name: "INGILTERE" },
     ],
     "city-discovery-london": [
-      { code: "GB", id: 44, name: "United Kingdom" },
-      { code: "ENG", id: 46, name: "England" },
+      { code: "GB", id: 15, name: "INGILTERE" },
+      { code: "GBR", id: 44, name: "United Kingdom" },
     ],
     "city-discovery-no-country": [
       { code: "TR", id: 90, name: "Turkiye" },
@@ -72,7 +72,7 @@ function createMockFetch(mode: AwqatCityDiscoveryTestMode): typeof fetch {
       );
     }
 
-    if (url.endsWith("/api/Place/States/44") || url.endsWith("/api/Place/States/46")) {
+    if (url.endsWith("/api/Place/States/15") || url.endsWith("/api/Place/States/44")) {
       return new Response(
         JSON.stringify({
           data: [
@@ -287,7 +287,7 @@ async function main() {
   const matchedCountries = matchAwqatCountryCandidates(countries);
 
   if (matchedCountries.length === 0) {
-    throw new Error("No United Kingdom, UK, or England country candidate was found.");
+    throw new Error("No INGILTERE, England, United Kingdom, UK, or Great Britain country candidate was found.");
   }
 
   const candidates = await collectCandidates(client, matchedCountries);

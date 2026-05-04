@@ -50,7 +50,7 @@ test("Awqat Salah city discovery fails safely when no UK country candidate exist
 
   assert.notEqual(result.status, 0);
   const output = result.stdout + result.stderr;
-  assert.match(output, /No United Kingdom, UK, or England country candidate was found\./);
+  assert.match(output, /No INGILTERE, England, United Kingdom, UK, or Great Britain country candidate was found\./);
   assert.doesNotMatch(output, /secret-user/);
   assert.doesNotMatch(output, /secret-password/);
 });

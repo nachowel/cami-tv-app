@@ -7,7 +7,7 @@ test("Awqat Salah city discovery workflow is manual only and uses the expected s
 
   assert.match(workflow, /workflow_dispatch:/);
   assert.doesNotMatch(workflow, /schedule:/);
-  assert.match(workflow, /AWQAT_SALAH_DEBUG_MODE:\s*country-list/);
+  assert.doesNotMatch(workflow, /AWQAT_SALAH_DEBUG_MODE:/);
   assert.match(workflow, /AWQAT_SALAH_USERNAME:\s*\$\{\{\s*secrets\.AWQAT_SALAH_USERNAME\s*\}\}/);
   assert.match(workflow, /AWQAT_SALAH_PASSWORD:\s*\$\{\{\s*secrets\.AWQAT_SALAH_PASSWORD\s*\}\}/);
 });

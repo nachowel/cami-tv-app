@@ -10,7 +10,6 @@ jobs:
   awqat-salah-city-discovery:
     runs-on: ubuntu-latest
     env:
-      AWQAT_SALAH_DEBUG_MODE: country-list
       AWQAT_SALAH_USERNAME: ${{ secrets.AWQAT_SALAH_USERNAME }}
       AWQAT_SALAH_PASSWORD: ${{ secrets.AWQAT_SALAH_PASSWORD }}
     steps:
