@@ -109,6 +109,10 @@ export function PrayerTimesSection({
           </label>
         </div>
 
+        <p className="mt-3 text-xs text-slate-500">
+          Saving manual prayer times updates prayerTimes/current only. It does not change this source setting.
+        </p>
+
         {prayerTimeSourceSettings.source === "manual" ? (
           <p className="mt-3 text-sm text-amber-700">
             Automatic sync is disabled while Manual Entry is selected.

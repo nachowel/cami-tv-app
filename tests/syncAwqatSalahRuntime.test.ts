@@ -98,8 +98,12 @@ test("production Awqat Salah sync skips when settings/prayerTimes is missing (de
   });
 
   assert.equal(state.writes.length, 0);
-  assert.ok(logs.some((message) => /skipped/i.test(message)));
-  assert.ok(logs.some((message) => /manual/i.test(message)));
+  assert.ok(
+    logs.some(
+      (message) =>
+        message === "[Awqat Salah Sync] Skipped: settings/prayerTimes source is manual",
+    ),
+  );
 });
 
 test("production Awqat Salah sync skips when settings/prayerTimes source is manual", async () => {
@@ -120,8 +124,12 @@ test("production Awqat Salah sync skips when settings/prayerTimes source is manu
   });
 
   assert.equal(state.writes.length, 0);
-  assert.ok(logs.some((message) => /skipped/i.test(message)));
-  assert.ok(logs.some((message) => /manual/i.test(message)));
+  assert.ok(
+    logs.some(
+      (message) =>
+        message === "[Awqat Salah Sync] Skipped: settings/prayerTimes source is manual",
+    ),
+  );
 });
 
 test("production Awqat Salah sync skips when settings/prayerTimes source is aladhan", async () => {

@@ -8,6 +8,7 @@ const prayerTimesSectionSource = readFileSync(
 );
 
 test("prayer time source selector includes the Awqat Salah option and binds to settings source", () => {
+  assert.match(prayerTimesSectionSource, /label:\s*"Manual Entry", value:\s*"manual"/);
   assert.match(prayerTimesSectionSource, /label:\s*"Awqat Salah API", value:\s*"awqat-salah"/);
   assert.match(prayerTimesSectionSource, /value=\{prayerTimeSourceSettings\.source\}/);
   assert.match(
@@ -17,5 +18,9 @@ test("prayer time source selector includes the Awqat Salah option and binds to s
   assert.match(
     prayerTimesSectionSource,
     /Active source:\s*\{getPrayerTimeSourceLabel\(prayerTimeSourceSettings\.source\)\}/,
+  );
+  assert.match(
+    prayerTimesSectionSource,
+    /Saving manual prayer times updates prayerTimes\/current only\. It does not change this source setting\./,
   );
 });

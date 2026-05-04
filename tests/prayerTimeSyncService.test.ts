@@ -203,8 +203,13 @@ test("runPrayerTimeSync defaults missing settings/prayerTimes to manual and skip
   assert.equal(providerCalls, 0);
   assert.equal(state.writes.length, 0);
   assert.equal(result.today.fajr, mockDisplayData.prayerTimes.today.fajr);
-  assert.match(infoLogs[0] ?? "", /skipped/i);
-  assert.match(infoLogs[0] ?? "", /manual/);
+  assert.ok(
+    infoLogs.some(
+      (message) =>
+        message ===
+        "Prayer time sync skipped because settings/prayerTimes source is manual.",
+    ),
+  );
 });
 
 test("runPrayerTimeSync exits without writing when source is awqat-salah", async () => {
