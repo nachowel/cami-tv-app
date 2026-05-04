@@ -10,7 +10,13 @@ import { summarizeAwqatPrayerTimePayload } from "./awqatSalahPrayerTimesInspecti
 const LOCKED_CITY_ID = 14096;
 const LOCKED_CITY_NAME = "LONDRA";
 
-type AwqatPrayerTimesInspectTestMode = "prayer-times-inspect";
+type AwqatPrayerTimesInspectTestMode =
+  | "prayer-times-inspect"
+  | "prayer-times-inspect-query-fallback";
+
+function endsWithPrayerTimeQuery(url: string, scope: "Daily" | "Weekly" | "Monthly", query: string) {
+  return url.endsWith(`/api/AwqatSalah/${scope}?${query}=${LOCKED_CITY_ID}`);
+}
 
 function createMockFetch(mode: AwqatPrayerTimesInspectTestMode): typeof fetch {
   return (async (input) => {
@@ -33,7 +39,21 @@ function createMockFetch(mode: AwqatPrayerTimesInspectTestMode): typeof fetch {
       );
     }
 
-    if (mode === "prayer-times-inspect" && url.endsWith(`/api/AwqatSalah/Daily/${LOCKED_CITY_ID}`)) {
+    if (
+      mode === "prayer-times-inspect-query-fallback" &&
+      endsWithPrayerTimeQuery(url, "Daily", "cityId")
+    ) {
+      return new Response(JSON.stringify({ message: "not found" }), {
+        headers: { "content-type": "application/json" },
+        status: 404,
+      });
+    }
+
+    if (
+      (mode === "prayer-times-inspect" || mode === "prayer-times-inspect-query-fallback") &&
+      (endsWithPrayerTimeQuery(url, "Daily", "cityId") ||
+        endsWithPrayerTimeQuery(url, "Daily", "CityId"))
+    ) {
       return new Response(
         JSON.stringify({
           data: [
@@ -59,7 +79,10 @@ function createMockFetch(mode: AwqatPrayerTimesInspectTestMode): typeof fetch {
       );
     }
 
-    if (mode === "prayer-times-inspect" && url.endsWith(`/api/AwqatSalah/Monthly/${LOCKED_CITY_ID}`)) {
+    if (
+      (mode === "prayer-times-inspect" || mode === "prayer-times-inspect-query-fallback") &&
+      endsWithPrayerTimeQuery(url, "Monthly", "cityId")
+    ) {
       return new Response(
         JSON.stringify({
           data: [
@@ -91,7 +114,10 @@ function createMockFetch(mode: AwqatPrayerTimesInspectTestMode): typeof fetch {
       );
     }
 
-    if (mode === "prayer-times-inspect" && url.endsWith(`/api/AwqatSalah/Weekly/${LOCKED_CITY_ID}`)) {
+    if (
+      (mode === "prayer-times-inspect" || mode === "prayer-times-inspect-query-fallback") &&
+      endsWithPrayerTimeQuery(url, "Weekly", "cityId")
+    ) {
       return new Response(
         JSON.stringify({
           data: [],
@@ -118,7 +144,7 @@ function resolveFetchImplFromEnv(env: NodeJS.ProcessEnv) {
     return undefined;
   }
 
-  if (mode !== "prayer-times-inspect") {
+  if (mode !== "prayer-times-inspect" && mode !== "prayer-times-inspect-query-fallback") {
     throw new Error(`Unsupported AWQAT_SALAH_TEST_MODE value: ${mode}.`);
   }
 
