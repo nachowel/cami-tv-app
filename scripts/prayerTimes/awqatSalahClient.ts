@@ -39,16 +39,6 @@ export interface AwqatSalahClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-class AwqatSalahRequestError extends Error {
-  status?: number;
-
-  constructor(message: string, options: { cause?: unknown; status?: number } = {}) {
-    super(message, options.cause ? { cause: options.cause } : undefined);
-    this.name = "AwqatSalahRequestError";
-    this.status = options.status;
-  }
-}
-
 interface ParsedAwqatSalahTokens {
   accessToken?: string;
   refreshToken?: string;
@@ -193,20 +183,6 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   let accessToken = "";
 
-  function buildPrayerTimeQueryPaths(basePath: string, cityId: number) {
-    return [
-      `${basePath}?cityId=${cityId}`,
-      `${basePath}?CityId=${cityId}`,
-      `${basePath}?cityID=${cityId}`,
-    ];
-  }
-
-  function getStatusFromError(error: unknown) {
-    return error instanceof AwqatSalahRequestError && typeof error.status === "number"
-      ? error.status
-      : undefined;
-  }
-
   async function getAuthenticatedJson(path: string) {
     if (!accessToken) {
       throw new Error("Awqat Salah request requires a successful login first.");
@@ -222,49 +198,34 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
         method: "GET",
       });
     } catch (error) {
-      throw new AwqatSalahRequestError(`Awqat Salah request failed for ${path}.`, { cause: error });
+      throw new Error(`Awqat Salah request failed for ${path}.`, { cause: error });
     }
 
     const responseBody = await parseJsonSafely(response);
 
     if (!response.ok) {
-      throw new AwqatSalahRequestError(
-        `Awqat Salah request failed for ${path} with status ${response.status}.`,
-        { status: response.status },
-      );
+      throw new Error(`Awqat Salah request failed for ${path} with status ${response.status}.`);
     }
 
     return responseBody;
   }
 
-  async function getPrayerTimePayloadWithFallback(label: string, basePath: string, cityId: number) {
-    const attemptPaths = buildPrayerTimeQueryPaths(basePath, cityId);
-    let lastError: unknown;
+  async function getPrayerTimePayload(label: string, path: string) {
+    try {
+      const responseBody = await getAuthenticatedJson(path);
+      console.log(`${label} fetch succeeded`);
+      return normalizePrayerTimePayload(path, responseBody);
+    } catch (error) {
+      if (error instanceof Error) {
+        const statusMatch = error.message.match(/status (\d+)\./);
 
-    for (const path of attemptPaths) {
-      try {
-        const responseBody = await getAuthenticatedJson(path);
-        console.log(`${label} fetch succeeded`);
-        return normalizePrayerTimePayload(path, responseBody);
-      } catch (error) {
-        lastError = error;
-        const status = getStatusFromError(error);
-
-        if (typeof status === "number") {
-          console.log(`${label} fetch failed with status ${status}`);
+        if (statusMatch) {
+          console.log(`${label} fetch failed with status ${statusMatch[1]}`);
         }
-
-        if (status === 404) {
-          continue;
-        }
-
-        throw error;
       }
-    }
 
-    throw lastError instanceof Error
-      ? lastError
-      : new Error(`Awqat Salah ${label.toLowerCase()} request failed.`);
+      throw error;
+    }
   }
 
   return {
@@ -332,13 +293,13 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
       );
     },
     async getDailyPrayerTimes(cityId: number) {
-      return getPrayerTimePayloadWithFallback("Daily", "/api/AwqatSalah/Daily", cityId);
+      return getPrayerTimePayload("Daily", `/api/PrayerTime/Daily/${cityId}`);
     },
     async getWeeklyPrayerTimes(cityId: number) {
-      return getPrayerTimePayloadWithFallback("Weekly", "/api/AwqatSalah/Weekly", cityId);
+      return getPrayerTimePayload("Weekly", `/api/PrayerTime/Weekly/${cityId}`);
     },
     async getMonthlyPrayerTimes(cityId: number) {
-      return getPrayerTimePayloadWithFallback("Monthly", "/api/AwqatSalah/Monthly", cityId);
+      return getPrayerTimePayload("Monthly", `/api/PrayerTime/Monthly/${cityId}`);
     },
     toSafeErrorMessage,
   };

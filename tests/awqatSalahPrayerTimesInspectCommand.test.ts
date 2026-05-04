@@ -39,30 +39,6 @@ test("Awqat Salah prayer times inspect prints sanitized daily inspection output"
   assert.doesNotMatch(output, /shapeMoonUrl/);
 });
 
-test("Awqat Salah prayer times inspect retries daily fetch with alternate query casing after a 404", () => {
-  const result = spawnSync(
-    process.execPath,
-    ["--experimental-strip-types", "scripts/prayerTimes/inspectAwqatSalahPrayerTimes.ts"],
-    {
-      cwd: process.cwd(),
-      encoding: "utf8",
-      env: {
-        ...process.env,
-        AWQAT_SALAH_PASSWORD: "secret-password",
-        AWQAT_SALAH_USERNAME: "secret-user",
-        AWQAT_SALAH_TEST_MODE: "prayer-times-inspect-query-fallback",
-      },
-    },
-  );
-
-  assert.equal(result.status, 0);
-  const output = result.stdout + result.stderr;
-  assert.match(output, /Daily fetch failed with status 404/);
-  assert.match(output, /Daily fetch succeeded/);
-  assert.doesNotMatch(output, /access-secret-token/);
-  assert.doesNotMatch(output, /refresh-secret-token/);
-});
-
 test("Awqat Salah prayer times inspect fetches optional monthly output only when --monthly is provided", () => {
   const result = spawnSync(
     process.execPath,

@@ -150,7 +150,7 @@ test("authenticated Awqat Salah place lookup uses the login token and returns pl
   );
 });
 
-test("authenticated Awqat Salah prayer time lookups use query-based endpoints and preserve the login token", async () => {
+test("authenticated Awqat Salah prayer time lookups use official PrayerTime path endpoints and preserve the login token", async () => {
   const calls: Array<{ input: string; init?: RequestInit }> = [];
   const client = createAwqatSalahClient({
     fetchImpl: async (input, init) => {
@@ -212,83 +212,9 @@ test("authenticated Awqat Salah prayer time lookups use query-based endpoints an
   assert.equal(Array.isArray(daily), true);
   assert.equal(Array.isArray(weekly), true);
   assert.equal(Array.isArray(monthly), true);
-  assert.match(calls[1]?.input ?? "", /\/api\/AwqatSalah\/Daily\?cityId=14096$/);
-  assert.match(calls[2]?.input ?? "", /\/api\/AwqatSalah\/Weekly\?cityId=14096$/);
-  assert.match(calls[3]?.input ?? "", /\/api\/AwqatSalah\/Monthly\?cityId=14096$/);
-  for (const call of calls.slice(1)) {
-    assert.equal(
-      (call.init?.headers as Record<string, string> | undefined)?.Authorization,
-      "Bearer access-secret-token",
-    );
-  }
-});
-
-test("Awqat Salah prayer time lookup retries with CityId casing after a 404", async () => {
-  const calls: Array<{ input: string; init?: RequestInit }> = [];
-  const client = createAwqatSalahClient({
-    fetchImpl: async (input, init) => {
-      const url = String(input);
-      calls.push({
-        init,
-        input: url,
-      });
-
-      if (url.endsWith("/Auth/Login")) {
-        return new Response(
-          JSON.stringify({
-            data: {
-              accessToken: "access-secret-token",
-            },
-          }),
-          {
-            headers: { "content-type": "application/json" },
-            status: 200,
-          },
-        );
-      }
-
-      if (url.endsWith("/api/AwqatSalah/Daily?cityId=14096")) {
-        return new Response(JSON.stringify({ message: "not found" }), {
-          headers: { "content-type": "application/json" },
-          status: 404,
-        });
-      }
-
-      if (url.endsWith("/api/AwqatSalah/Daily?CityId=14096")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                fajr: "04:10",
-                gregorianDateShortIso8601: "2026-05-04",
-              },
-            ],
-            success: true,
-          }),
-          {
-            headers: { "content-type": "application/json" },
-            status: 200,
-          },
-        );
-      }
-
-      return new Response(JSON.stringify({ message: "unexpected" }), {
-        headers: { "content-type": "application/json" },
-        status: 500,
-      });
-    },
-  });
-
-  await client.login({
-    password: "secret-password",
-    username: "secret-user",
-  });
-
-  const daily = await client.getDailyPrayerTimes(14096);
-
-  assert.equal(Array.isArray(daily), true);
-  assert.match(calls[1]?.input ?? "", /\/api\/AwqatSalah\/Daily\?cityId=14096$/);
-  assert.match(calls[2]?.input ?? "", /\/api\/AwqatSalah\/Daily\?CityId=14096$/);
+  assert.match(calls[1]?.input ?? "", /\/api\/PrayerTime\/Daily\/14096$/);
+  assert.match(calls[2]?.input ?? "", /\/api\/PrayerTime\/Weekly\/14096$/);
+  assert.match(calls[3]?.input ?? "", /\/api\/PrayerTime\/Monthly\/14096$/);
   for (const call of calls.slice(1)) {
     assert.equal(
       (call.init?.headers as Record<string, string> | undefined)?.Authorization,
