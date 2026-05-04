@@ -5,6 +5,25 @@ export interface AwqatSalahCredentials {
   password: string;
 }
 
+export interface AwqatSalahPlace {
+  id: number;
+  code?: string;
+  name: string;
+}
+
+export interface AwqatSalahCityDetail {
+  city?: string;
+  cityEn?: string;
+  code?: string;
+  country?: string;
+  countryEn?: string;
+  distanceToKaaba?: string;
+  geographicQiblaAngle?: string;
+  id: string;
+  name?: string;
+  qiblaAngle?: string;
+}
+
 export interface AwqatSalahLoginResult {
   accessToken: string;
   refreshToken?: string;
@@ -34,8 +53,22 @@ function asRecord(value: unknown) {
     : undefined;
 }
 
-function extractTokens(value: unknown): ParsedAwqatSalahTokens {
+function readNestedData(value: unknown): unknown {
   const record = asRecord(value);
+
+  if (!record) {
+    return value;
+  }
+
+  if ("data" in record) {
+    return readNestedData(record.data);
+  }
+
+  return value;
+}
+
+function extractTokens(value: unknown): ParsedAwqatSalahTokens {
+  const record = asRecord(readNestedData(value));
 
   if (!record) {
     return {};
@@ -48,11 +81,6 @@ function extractTokens(value: unknown): ParsedAwqatSalahTokens {
   if (accessToken || refreshToken || tokenType) {
     return { accessToken, refreshToken, tokenType };
   }
-
-  if ("data" in record) {
-    return extractTokens(record.data);
-  }
-
   return {};
 }
 
@@ -68,6 +96,52 @@ async function parseJsonSafely(response: Response) {
   } catch {
     return undefined;
   }
+}
+
+function normalizePlaceArray(path: string, value: unknown) {
+  const data = readNestedData(value);
+
+  if (!Array.isArray(data)) {
+    throw new Error(`Awqat Salah request returned an unexpected response for ${path}.`);
+  }
+
+  return data.map((item) => {
+    const record = asRecord(item);
+
+    if (!record || typeof record.id !== "number" || !isNonEmptyString(record.name)) {
+      throw new Error(`Awqat Salah request returned an unexpected response for ${path}.`);
+    }
+
+    return {
+      code: isNonEmptyString(record.code) ? record.code : undefined,
+      id: record.id,
+      name: record.name.trim(),
+    } satisfies AwqatSalahPlace;
+  });
+}
+
+function normalizeCityDetail(path: string, value: unknown) {
+  const data = readNestedData(value);
+  const record = asRecord(data);
+
+  if (!record || !(typeof record.id === "string" || typeof record.id === "number")) {
+    throw new Error(`Awqat Salah request returned an unexpected response for ${path}.`);
+  }
+
+  return {
+    city: isNonEmptyString(record.city) ? record.city : undefined,
+    cityEn: isNonEmptyString(record.cityEn) ? record.cityEn : undefined,
+    code: isNonEmptyString(record.code) ? record.code : undefined,
+    country: isNonEmptyString(record.country) ? record.country : undefined,
+    countryEn: isNonEmptyString(record.countryEn) ? record.countryEn : undefined,
+    distanceToKaaba: isNonEmptyString(record.distanceToKaaba) ? record.distanceToKaaba : undefined,
+    geographicQiblaAngle: isNonEmptyString(record.geographicQiblaAngle)
+      ? record.geographicQiblaAngle
+      : undefined,
+    id: String(record.id),
+    name: isNonEmptyString(record.name) ? record.name : undefined,
+    qiblaAngle: isNonEmptyString(record.qiblaAngle) ? record.qiblaAngle : undefined,
+  } satisfies AwqatSalahCityDetail;
 }
 
 function validateCredentials(credentials: AwqatSalahCredentials) {
@@ -95,6 +169,34 @@ export function readAwqatSalahCredentialsFromEnv(
 export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
   const baseUrl = (options.baseUrl ?? DEFAULT_AWQAT_SALAH_BASE_URL).replace(/\/+$/, "");
   const fetchImpl = options.fetchImpl ?? fetch;
+  let accessToken = "";
+
+  async function getAuthenticatedJson(path: string) {
+    if (!accessToken) {
+      throw new Error("Awqat Salah request requires a successful login first.");
+    }
+
+    let response: Response;
+
+    try {
+      response = await fetchImpl(`${baseUrl}${path}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        method: "GET",
+      });
+    } catch (error) {
+      throw new Error(`Awqat Salah request failed for ${path}.`, { cause: error });
+    }
+
+    const responseBody = await parseJsonSafely(response);
+
+    if (!response.ok) {
+      throw new Error(`Awqat Salah request failed for ${path} with status ${response.status}.`);
+    }
+
+    return responseBody;
+  }
 
   return {
     async login(credentials: AwqatSalahCredentials): Promise<AwqatSalahLoginResult> {
@@ -129,6 +231,8 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
         throw new Error("Awqat Salah login succeeded but no access token was returned.");
       }
 
+      accessToken = tokens.accessToken;
+
       return {
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
@@ -136,6 +240,27 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
         hasAccessToken: true,
         hasRefreshToken: isNonEmptyString(tokens.refreshToken),
       };
+    },
+    async getCountries() {
+      return normalizePlaceArray("/api/Place/Countries", await getAuthenticatedJson("/api/Place/Countries"));
+    },
+    async getStatesByCountry(countryId: number) {
+      return normalizePlaceArray(
+        `/api/Place/States/${countryId}`,
+        await getAuthenticatedJson(`/api/Place/States/${countryId}`),
+      );
+    },
+    async getCitiesByState(stateId: number) {
+      return normalizePlaceArray(
+        `/api/Place/Cities/${stateId}`,
+        await getAuthenticatedJson(`/api/Place/Cities/${stateId}`),
+      );
+    },
+    async getCityDetail(cityId: number) {
+      return normalizeCityDetail(
+        `/api/Place/CityDetail/${cityId}`,
+        await getAuthenticatedJson(`/api/Place/CityDetail/${cityId}`),
+      );
     },
     toSafeErrorMessage,
   };

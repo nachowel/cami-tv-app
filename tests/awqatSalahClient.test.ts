@@ -80,3 +80,72 @@ test("successful Awqat Salah login returns token flags without leaking secrets i
   assert.equal(result.accessToken, "access-secret-token");
   assert.equal(result.refreshToken, "refresh-secret-token");
 });
+
+test("authenticated Awqat Salah place lookup uses the login token and returns place data", async () => {
+  const calls: Array<{ input: string; init?: RequestInit }> = [];
+  const client = createAwqatSalahClient({
+    fetchImpl: async (input, init) => {
+      calls.push({
+        init,
+        input: String(input),
+      });
+
+      if (String(input).endsWith("/Auth/Login")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              accessToken: "access-secret-token",
+              refreshToken: "refresh-secret-token",
+              tokenType: "Bearer",
+            },
+          }),
+          {
+            headers: {
+              "content-type": "application/json",
+            },
+            status: 200,
+          },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              code: "GB",
+              id: 44,
+              name: "United Kingdom",
+            },
+          ],
+          success: true,
+        }),
+        {
+          headers: {
+            "content-type": "application/json",
+          },
+          status: 200,
+        },
+      );
+    },
+  });
+
+  await client.login({
+    password: "secret-password",
+    username: "secret-user",
+  });
+
+  const countries = await client.getCountries();
+
+  assert.deepEqual(countries, [
+    {
+      code: "GB",
+      id: 44,
+      name: "United Kingdom",
+    },
+  ]);
+  assert.match(calls[1]?.input ?? "", /\/api\/Place\/Countries$/);
+  assert.equal(
+    (calls[1]?.init?.headers as Record<string, string> | undefined)?.Authorization,
+    "Bearer access-secret-token",
+  );
+});
