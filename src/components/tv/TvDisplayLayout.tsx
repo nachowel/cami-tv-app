@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { DisplayData, TvWeather } from "../../types/display";
+import type { DisplayData, PrayerTimesCurrent, TvWeather } from "../../types/display";
 import { useTranslation } from "../../i18n/useTranslation";
 import { createUnavailableTvWeather } from "../../services/weatherService";
 import { getCurrentAndNextPrayer } from "../../utils/prayerTimes";
@@ -17,9 +17,11 @@ import { useTvViewportLayout } from "./tvViewportLayout";
 
 interface TvDisplayLayoutProps {
   data: DisplayData;
+  lastSuccessfulPrayerTimes?: PrayerTimesCurrent | null;
+  prayerTimesStatus?: "loading" | "ok" | "error";
 }
 
-export function TvDisplayLayout({ data }: TvDisplayLayoutProps) {
+export function TvDisplayLayout({ data, lastSuccessfulPrayerTimes, prayerTimesStatus }: TvDisplayLayoutProps) {
   const language = data.settings.language;
   const { t } = useTranslation(language);
   const [now, setNow] = useState(() => new Date());
@@ -86,6 +88,8 @@ export function TvDisplayLayout({ data }: TvDisplayLayoutProps) {
             prayerTimes={data.prayerTimes}
             language={language}
             highlightedPrayer={prayerPanelState.highlightedPrayer}
+            lastSuccessfulPrayerTimes={lastSuccessfulPrayerTimes}
+            status={prayerTimesStatus}
           />
         </aside>
 

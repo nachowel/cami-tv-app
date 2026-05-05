@@ -5,6 +5,8 @@ export const FIRESTORE_PATHS = {
     prayerTimesCurrent: "prayerTimes/current",
     prayerTimesSyncTest: "prayerTimes/syncTest",
     settingsDisplay: "settings/display",
+    settingsDonationDisplay: "settings/donationDisplay",
+    settingsPrayerTimes: "settings/prayerTimes",
     tickerCurrent: "ticker/current",
 };
 export function getAnnouncementDocumentPath(announcementId) {

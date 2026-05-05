@@ -20,6 +20,55 @@ function isRecord(value) {
 function readString(value) {
     return typeof value === "string" ? value : "";
 }
+function normalizeProviderAlias(value) {
+    if (value === "aladhan") {
+        return "aladhan";
+    }
+    if (value === "awqat" || value === "awqat-salah") {
+        return "awqat";
+    }
+    return null;
+}
+function toCanonicalProviderSource(value) {
+    if (value === "aladhan") {
+        return "aladhan";
+    }
+    if (value === "awqat" || value === "awqat-salah") {
+        return "awqat-salah";
+    }
+    return null;
+}
+export function toPrayerProviderAlias(value) {
+    return normalizeProviderAlias(value);
+}
+function normalizeEffectiveSource(value, sourceAlias) {
+    if (value === "aladhan" || value === "awqat-salah") {
+        return value;
+    }
+    if (sourceAlias === "aladhan") {
+        return "aladhan";
+    }
+    if (sourceAlias === "awqat") {
+        return "awqat-salah";
+    }
+    return "manual";
+}
+function normalizeProviderSource(value, providerAlias) {
+    const canonical = toCanonicalProviderSource(value);
+    if (canonical != null) {
+        return canonical;
+    }
+    return toCanonicalProviderSource(providerAlias);
+}
+export function getPrayerTimesUpdatedAt(value) {
+    return value.updatedAt ?? value.updated_at ?? value.fetchedAt;
+}
+function resolvePreferredAutomaticSource(current) {
+    if (current.providerSource === "awqat-salah" || current.source === "awqat") {
+        return "awqat-salah";
+    }
+    return "aladhan";
+}
 function toTime24Hour(value) {
     return value;
 }
@@ -51,6 +100,8 @@ function normalizeAutomaticSnapshot(value, fallbackDay, fallbackTomorrow) {
 }
 export function normalizePrayerTimesCurrent(value, fallback) {
     const record = isRecord(value) ? value : {};
+    const providerAlias = normalizeProviderAlias(record.provider ?? record.providerSource);
+    const sourceAlias = normalizeProviderAlias(record.source ?? record.effectiveSource ?? record.provider);
     const fallbackToday = fallback?.today ?? DEFAULT_DAY;
     const fallbackTomorrow = fallback?.tomorrow ?? null;
     const automaticTimes = normalizeAutomaticSnapshot(record.automaticTimes, fallbackToday, fallbackTomorrow);
@@ -60,9 +111,25 @@ export function normalizePrayerTimesCurrent(value, fallback) {
         tomorrow: isRecord(record.tomorrow)
             ? normalizePrayerTimesForDay(record.tomorrow, fallbackTomorrow ?? fallbackToday)
             : fallbackTomorrow,
-        updated_at: readString(record.updated_at) || fallback?.updated_at || new Date(0).toISOString(),
-        effectiveSource: record.effectiveSource === "aladhan" ? "aladhan" : "manual",
-        providerSource: record.providerSource === "aladhan" ? "aladhan" : null,
+        updated_at: readString(record.updated_at) ||
+            readString(record.updatedAt) ||
+            fallback?.updated_at ||
+            fallback?.updatedAt ||
+            new Date(0).toISOString(),
+        updatedAt: readString(record.updatedAt) ||
+            readString(record.updated_at) ||
+            fallback?.updatedAt ||
+            fallback?.updated_at ||
+            new Date(0).toISOString(),
+        effectiveSource: normalizeEffectiveSource(record.effectiveSource, sourceAlias),
+        providerSource: normalizeProviderSource(record.providerSource, providerAlias),
+        provider: providerAlias ??
+            toPrayerProviderAlias(fallback?.providerSource ?? fallback?.provider) ??
+            null,
+        source: sourceAlias ??
+            providerAlias ??
+            toPrayerProviderAlias(fallback?.source ?? fallback?.providerSource ?? fallback?.provider) ??
+            null,
         method: typeof record.method === "number" ? record.method : null,
         fetchedAt: readString(record.fetchedAt) || null,
         manualOverride: typeof record.manualOverride === "boolean" ? record.manualOverride : true,
@@ -84,13 +151,18 @@ export function restoreEffectivePrayerTimesFromAutomatic(current, updatedAt) {
             manualOverride: false,
         };
     }
+    const restoredSource = resolvePreferredAutomaticSource(current);
+    const providerAlias = toPrayerProviderAlias(restoredSource);
     return {
         ...current,
         date: current.automaticTimes.date,
         today: current.automaticTimes.today,
         tomorrow: current.automaticTimes.tomorrow,
         updated_at: updatedAt,
-        effectiveSource: "aladhan",
+        updatedAt,
+        effectiveSource: restoredSource,
+        provider: providerAlias,
+        source: providerAlias,
         manualOverride: false,
     };
 }

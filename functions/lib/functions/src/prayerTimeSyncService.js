@@ -1,6 +1,8 @@
 import { createAladhanProvider } from "../../scripts/prayerTimes/aladhanProvider.js";
 import { createPrayerTimeSyncRunner } from "../../scripts/prayerTimes/prayerTimeSyncShared.js";
 import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.js";
+import { getPrayerTimesUpdatedAt, normalizePrayerTimesCurrent, toPrayerProviderAlias, } from "../../src/utils/prayerTimeDocument.js";
+import { normalizePrayerTimeSourceSettings } from "../../src/utils/prayerTimeSourceSettings.js";
 function getTrimmedEnv(name, env) {
     const value = env[name]?.trim();
     return value ? value : null;
@@ -15,6 +17,10 @@ function readOffset(name, env) {
         throw new Error(`Invalid numeric prayer time offset for ${name}: ${value}`);
     }
     return parsed;
+}
+export async function readPrayerTimeSourceSettings(db) {
+    const snapshot = await db.doc(FIRESTORE_PATHS.settingsPrayerTimes).get();
+    return normalizePrayerTimeSourceSettings(snapshot.exists ? snapshot.data() : null);
 }
 export function getPrayerTimeSyncProjectId(env = process.env) {
     return getTrimmedEnv("FIREBASE_PROJECT_ID", env) ?? getTrimmedEnv("VITE_FIREBASE_PROJECT_ID", env);
@@ -41,7 +47,26 @@ export async function runPrayerTimeSync({ db, fetchImpl, fetchProviderResult, lo
     console.error(message, error);
 }, logInfo = (message) => {
     console.log(message);
-}, now, offsets, providerConfig, targetPath = FIRESTORE_PATHS.prayerTimesCurrent, }) {
+}, now, offsets, providerConfig, }) {
+    const firestorePath = FIRESTORE_PATHS.prayerTimesCurrent;
+    const prayerTimeSourceSettings = await readPrayerTimeSourceSettings(db);
+    const currentSnapshot = await db.doc(firestorePath).get();
+    const current = normalizePrayerTimesCurrent(currentSnapshot.exists ? currentSnapshot.data() : null);
+    if (prayerTimeSourceSettings.source !== "aladhan") {
+        logInfo(`Prayer time sync skipped because ${FIRESTORE_PATHS.settingsPrayerTimes} source is ${prayerTimeSourceSettings.source}.`);
+        return current;
+    }
+    const activeProvider = toPrayerProviderAlias(current.provider ?? current.providerSource);
+    const lastUpdated = getPrayerTimesUpdatedAt(current);
+    const lastUpdatedMs = lastUpdated ? Date.parse(lastUpdated) : Number.NaN;
+    const executionTime = now ?? new Date();
+    const isFreshAwqatDocument = activeProvider === "awqat" &&
+        Number.isFinite(lastUpdatedMs) &&
+        (executionTime.getTime() - lastUpdatedMs) < (24 * 60 * 60 * 1000);
+    if (isFreshAwqatDocument) {
+        logInfo(`Prayer time sync skipped because ${firestorePath} already has fresh awqat data from ${lastUpdated}.`);
+        return current;
+    }
     const loadProviderResult = fetchProviderResult ??
         (() => {
             if (providerConfig == null || offsets == null) {
@@ -50,16 +75,13 @@ export async function runPrayerTimeSync({ db, fetchImpl, fetchProviderResult, lo
             return createAladhanProvider().fetchAutomaticTimes(providerConfig, offsets, fetchImpl, now);
         });
     const result = await createPrayerTimeSyncRunner({
-        fetchCurrent: async () => {
-            const snapshot = await db.doc(targetPath).get();
-            return snapshot.exists ? snapshot.data() : null;
-        },
+        fetchCurrent: async () => current,
         fetchProviderResult: loadProviderResult,
         saveCurrent: async (value) => {
-            await db.doc(targetPath).set(value);
+            await db.doc(firestorePath).set(value);
         },
         logError,
     }).run();
-    logInfo(`Prayer times synced to ${targetPath} from ${result.providerSource ?? "unknown"} with effective source ${result.effectiveSource}.`);
+    logInfo(`Prayer times synced to ${firestorePath} from ${result.providerSource ?? "unknown"}`);
     return result;
 }

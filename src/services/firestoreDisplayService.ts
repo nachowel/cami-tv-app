@@ -25,6 +25,7 @@ import type {
   DailyContentCurrent,
   DisplaySettings,
   DonationCurrent,
+  DonationDisplayConfig,
   PrayerTimeSourceSettings,
   PrayerTimesCurrent,
   TickerCurrent,
@@ -193,6 +194,60 @@ function normalizeTickerCurrent(value: unknown): TickerCurrent | null {
   };
 }
 
+export const DEFAULT_DONATION_DISPLAY_CONFIG: DonationDisplayConfig = {
+  enabled: true,
+  headline: "DONATE HERE TODAY",
+  message: "Without your donation, this masjid stops.",
+  cta: "Cash or Card Accepted Here ↓",
+  qrLabel: "Prefer online? Scan",
+  titleLine1: "DONATE",
+  titleLine2: "HERE TODAY",
+  subtitle: "Without your donation, this masjid cannot continue.",
+  mainMessage: "THIS MASJID CANNOT CONTINUE",
+  ctaText: "GIVE NOW — CASH OR CARD ↓",
+  qrUrl: "https://www.icmgbexley.org.uk/donation",
+  backgroundImageUrl: "",
+  impactText: "",
+  showImpactText: false,
+  showQrCode: true,
+  displayMode: "component",
+  qrOverlayEnabled: true,
+  qrOverlayXPercent: 82,
+  qrOverlayYPercent: 67,
+  qrOverlaySizePercent: 12,
+  motionEnabled: true,
+};
+
+export function normalizeDonationDisplayConfig(value: unknown): DonationDisplayConfig {
+  if (!isRecord(value)) {
+    return DEFAULT_DONATION_DISPLAY_CONFIG;
+  }
+
+  return {
+    enabled: typeof value.enabled === "boolean" ? value.enabled : DEFAULT_DONATION_DISPLAY_CONFIG.enabled,
+    headline: pickFirstNonEmptyString(value.headline, DEFAULT_DONATION_DISPLAY_CONFIG.headline),
+    message: pickFirstNonEmptyString(value.message, DEFAULT_DONATION_DISPLAY_CONFIG.message),
+    cta: pickFirstNonEmptyString(value.cta, DEFAULT_DONATION_DISPLAY_CONFIG.cta),
+    qrLabel: pickFirstNonEmptyString(value.qrLabel, DEFAULT_DONATION_DISPLAY_CONFIG.qrLabel),
+    titleLine1: pickFirstNonEmptyString(value.titleLine1, DEFAULT_DONATION_DISPLAY_CONFIG.titleLine1),
+    titleLine2: pickFirstNonEmptyString(value.titleLine2, DEFAULT_DONATION_DISPLAY_CONFIG.titleLine2),
+    subtitle: pickFirstNonEmptyString(value.subtitle, DEFAULT_DONATION_DISPLAY_CONFIG.subtitle),
+    mainMessage: pickFirstNonEmptyString(value.mainMessage, DEFAULT_DONATION_DISPLAY_CONFIG.mainMessage),
+    ctaText: pickFirstNonEmptyString(value.ctaText, DEFAULT_DONATION_DISPLAY_CONFIG.ctaText),
+    qrUrl: pickFirstNonEmptyString(value.qrUrl, DEFAULT_DONATION_DISPLAY_CONFIG.qrUrl),
+    backgroundImageUrl: typeof value.backgroundImageUrl === "string" ? value.backgroundImageUrl : DEFAULT_DONATION_DISPLAY_CONFIG.backgroundImageUrl,
+    impactText: typeof value.impactText === "string" ? value.impactText : undefined,
+    showImpactText: typeof value.showImpactText === "boolean" ? value.showImpactText : DEFAULT_DONATION_DISPLAY_CONFIG.showImpactText,
+    showQrCode: typeof value.showQrCode === "boolean" ? value.showQrCode : DEFAULT_DONATION_DISPLAY_CONFIG.showQrCode,
+    displayMode: value.displayMode === "image" ? "image" : DEFAULT_DONATION_DISPLAY_CONFIG.displayMode,
+    qrOverlayEnabled: typeof value.qrOverlayEnabled === "boolean" ? value.qrOverlayEnabled : DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayEnabled,
+    qrOverlayXPercent: typeof value.qrOverlayXPercent === "number" && !Number.isNaN(value.qrOverlayXPercent) ? value.qrOverlayXPercent : DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayXPercent,
+    qrOverlayYPercent: typeof value.qrOverlayYPercent === "number" && !Number.isNaN(value.qrOverlayYPercent) ? value.qrOverlayYPercent : DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayYPercent,
+    qrOverlaySizePercent: typeof value.qrOverlaySizePercent === "number" && !Number.isNaN(value.qrOverlaySizePercent) ? value.qrOverlaySizePercent : DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlaySizePercent,
+    motionEnabled: typeof value.motionEnabled === "boolean" ? value.motionEnabled : DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled,
+  };
+}
+
 async function executeRead<T>(label: string, operation: () => Promise<T>) {
   logFirestoreDebug(`${label}:start`);
 
@@ -224,6 +279,10 @@ export function getSettingsDisplayRef(db?: ReadWriteFirestore) {
 
 export function getDonationCurrentRef(db?: ReadWriteFirestore) {
   return defaultReadWriteApi.doc(requireReadWriteDb(db), FIRESTORE_PATHS.donationCurrent);
+}
+
+export function getDonationDisplayRef(db?: ReadWriteFirestore) {
+  return defaultReadWriteApi.doc(requireReadWriteDb(db), FIRESTORE_PATHS.settingsDonationDisplay);
 }
 
 export function getPrayerTimeSettingsRef(db?: ReadWriteFirestore) {
@@ -274,6 +333,10 @@ function getRealtimeTickerCurrentRef(db?: RealtimeFirestore) {
   return docRealtime(requireRealtimeDb(db), FIRESTORE_PATHS.tickerCurrent);
 }
 
+function getRealtimeDonationDisplayRef(db?: RealtimeFirestore) {
+  return docRealtime(requireRealtimeDb(db), FIRESTORE_PATHS.settingsDonationDisplay);
+}
+
 function getRealtimeAnnouncementsCollectionRef(db?: RealtimeFirestore) {
   return collectionRealtime(requireRealtimeDb(db), FIRESTORE_PATHS.announcementsCollection);
 }
@@ -301,6 +364,10 @@ export function createFirestoreReadWriteClient<
 
   function getDonationRef() {
     return api.doc(requireDb(), FIRESTORE_PATHS.donationCurrent);
+  }
+
+  function getDonationDisplayRef() {
+    return api.doc(requireDb(), FIRESTORE_PATHS.settingsDonationDisplay);
   }
 
   function getPrayerTimeSettingsRef() {
@@ -364,6 +431,16 @@ export function createFirestoreReadWriteClient<
         const snapshot = await api.getDoc(getTickerRef());
         return normalizeTickerCurrent(readSnapshotData<unknown>(snapshot));
       });
+    },
+    async fetchDonationDisplayConfig() {
+      return executeRead<DonationDisplayConfig>("fetchDonationDisplayConfig", async () => {
+        const snapshot = await api.getDoc(getDonationDisplayRef());
+        const value = readSnapshotData<unknown>(snapshot);
+        return value == null ? DEFAULT_DONATION_DISPLAY_CONFIG : normalizeDonationDisplayConfig(value);
+      });
+    },
+    async saveDonationDisplayConfig(config: DonationDisplayConfig) {
+      await executeWrite("saveDonationDisplayConfig", config, () => api.setDoc(getDonationDisplayRef(), config));
     },
     async fetchAnnouncements() {
       return executeRead<Announcement[]>("fetchAnnouncements", async () => {
@@ -473,6 +550,14 @@ export function saveDailyContentCurrent(dailyContent: DailyContentCurrent) {
 
 export function fetchTickerCurrent() {
   return defaultReadWriteClient.fetchTickerCurrent();
+}
+
+export function fetchDonationDisplayConfig() {
+  return defaultReadWriteClient.fetchDonationDisplayConfig();
+}
+
+export function saveDonationDisplayConfig(config: DonationDisplayConfig) {
+  return defaultReadWriteClient.saveDonationDisplayConfig(config);
 }
 
 export function saveTickerCurrent(ticker: TickerCurrent) {
@@ -600,6 +685,23 @@ export function subscribeToTickerCurrent(
         handleError,
       ),
     callback,
+    onError,
+  );
+}
+
+export function subscribeToDonationDisplayConfig(
+  callback: (value: DonationDisplayConfig) => void,
+  onError?: (error: Error) => void,
+  db?: RealtimeFirestore,
+) {
+  return subscribeSingleton<DonationDisplayConfig>(
+    (onValue, handleError) =>
+      onSnapshot(
+        getRealtimeDonationDisplayRef(db),
+        (snapshot) => onValue(normalizeDonationDisplayConfig(snapshot.exists() ? snapshot.data() : null)),
+        handleError,
+      ),
+    (value) => callback(value ?? DEFAULT_DONATION_DISPLAY_CONFIG),
     onError,
   );
 }

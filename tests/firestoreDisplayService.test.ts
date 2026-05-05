@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import {
   FIRESTORE_PATHS,
   createFirestoreReadWriteClient,
+  DEFAULT_DONATION_DISPLAY_CONFIG,
   getAnnouncementDocumentPath,
   getFirestoreServiceSetupError,
+  normalizeDonationDisplayConfig,
 } from "../src/services/firestoreDisplayService.ts";
 import { mockDisplayData } from "../src/data/mockDisplayData.ts";
 
@@ -18,6 +20,7 @@ test("FIRESTORE_PATHS matches the expected singleton document and collection pat
     settingsPrayerTimes: "settings/prayerTimes",
     prayerTimesSyncTest: "prayerTimes/syncTest",
     settingsDisplay: "settings/display",
+    settingsDonationDisplay: "settings/donationDisplay",
     tickerCurrent: "ticker/current",
   });
 });
@@ -754,4 +757,346 @@ test("createFirestoreReadWriteClient safely omits undefined fields when saving s
       },
     },
   ]);
+});
+
+test("normalizeDonationDisplayConfig returns defaults when input is null", () => {
+  const result = normalizeDonationDisplayConfig(null);
+  assert.equal(result.enabled, DEFAULT_DONATION_DISPLAY_CONFIG.enabled);
+  assert.equal(result.headline, DEFAULT_DONATION_DISPLAY_CONFIG.headline);
+  assert.equal(result.message, DEFAULT_DONATION_DISPLAY_CONFIG.message);
+  assert.equal(result.cta, DEFAULT_DONATION_DISPLAY_CONFIG.cta);
+  assert.equal(result.qrLabel, DEFAULT_DONATION_DISPLAY_CONFIG.qrLabel);
+  assert.equal(result.qrUrl, DEFAULT_DONATION_DISPLAY_CONFIG.qrUrl);
+  assert.equal(result.backgroundImageUrl, DEFAULT_DONATION_DISPLAY_CONFIG.backgroundImageUrl);
+  assert.equal(result.showQrCode, DEFAULT_DONATION_DISPLAY_CONFIG.showQrCode);
+});
+
+test("normalizeDonationDisplayConfig returns defaults when input is undefined", () => {
+  const result = normalizeDonationDisplayConfig(undefined);
+  assert.equal(result.enabled, DEFAULT_DONATION_DISPLAY_CONFIG.enabled);
+  assert.equal(result.headline, DEFAULT_DONATION_DISPLAY_CONFIG.headline);
+});
+
+test("normalizeDonationDisplayConfig returns defaults when input is a primitive", () => {
+  const result = normalizeDonationDisplayConfig("not an object");
+  assert.equal(result.enabled, DEFAULT_DONATION_DISPLAY_CONFIG.enabled);
+  assert.equal(result.headline, DEFAULT_DONATION_DISPLAY_CONFIG.headline);
+});
+
+test("normalizeDonationDisplayConfig returns defaults when input is an empty object", () => {
+  const result = normalizeDonationDisplayConfig({});
+  assert.equal(result.enabled, DEFAULT_DONATION_DISPLAY_CONFIG.enabled);
+  assert.equal(result.headline, DEFAULT_DONATION_DISPLAY_CONFIG.headline);
+  assert.equal(result.message, DEFAULT_DONATION_DISPLAY_CONFIG.message);
+  assert.equal(result.cta, DEFAULT_DONATION_DISPLAY_CONFIG.cta);
+  assert.equal(result.qrLabel, DEFAULT_DONATION_DISPLAY_CONFIG.qrLabel);
+  assert.equal(result.qrUrl, DEFAULT_DONATION_DISPLAY_CONFIG.qrUrl);
+  assert.equal(result.backgroundImageUrl, DEFAULT_DONATION_DISPLAY_CONFIG.backgroundImageUrl);
+  assert.equal(result.showQrCode, DEFAULT_DONATION_DISPLAY_CONFIG.showQrCode);
+});
+
+test("normalizeDonationDisplayConfig uses provided values when valid", () => {
+  const input = {
+    enabled: false,
+    headline: "Custom Headline",
+    message: "Custom message",
+    cta: "Custom CTA",
+    qrLabel: "Custom QR label",
+    qrUrl: "https://example.com/custom",
+    backgroundImageUrl: "https://example.com/bg.jpg",
+  };
+  const result = normalizeDonationDisplayConfig(input);
+  assert.equal(result.enabled, false);
+  assert.equal(result.headline, "Custom Headline");
+  assert.equal(result.message, "Custom message");
+  assert.equal(result.cta, "Custom CTA");
+  assert.equal(result.qrLabel, "Custom QR label");
+  assert.equal(result.qrUrl, "https://example.com/custom");
+  assert.equal(result.backgroundImageUrl, "https://example.com/bg.jpg");
+});
+
+test("normalizeDonationDisplayConfig falls back for missing optional fields", () => {
+  const input = {
+    enabled: true,
+    headline: "Only Headline",
+  };
+  const result = normalizeDonationDisplayConfig(input);
+  assert.equal(result.enabled, true);
+  assert.equal(result.headline, "Only Headline");
+  assert.equal(result.message, DEFAULT_DONATION_DISPLAY_CONFIG.message);
+  assert.equal(result.cta, DEFAULT_DONATION_DISPLAY_CONFIG.cta);
+  assert.equal(result.qrLabel, DEFAULT_DONATION_DISPLAY_CONFIG.qrLabel);
+  assert.equal(result.qrUrl, DEFAULT_DONATION_DISPLAY_CONFIG.qrUrl);
+  assert.equal(result.backgroundImageUrl, DEFAULT_DONATION_DISPLAY_CONFIG.backgroundImageUrl);
+  assert.equal(result.showQrCode, DEFAULT_DONATION_DISPLAY_CONFIG.showQrCode);
+});
+
+test("normalizeDonationDisplayConfig uses fallback for non-boolean enabled", () => {
+  assert.equal(normalizeDonationDisplayConfig({ enabled: "yes" as unknown }).enabled, true);
+  assert.equal(normalizeDonationDisplayConfig({ enabled: 1 as unknown }).enabled, true);
+  assert.equal(normalizeDonationDisplayConfig({ enabled: null as unknown }).enabled, true);
+  assert.equal(normalizeDonationDisplayConfig({ enabled: undefined as unknown }).enabled, true);
+});
+
+test("normalizeDonationDisplayConfig uses fallback for empty string headline", () => {
+  const result = normalizeDonationDisplayConfig({ headline: "   " });
+  assert.equal(result.headline, DEFAULT_DONATION_DISPLAY_CONFIG.headline);
+});
+
+test("normalizeDonationDisplayConfig preserves empty string backgroundImageUrl", () => {
+  const result = normalizeDonationDisplayConfig({ backgroundImageUrl: "" });
+  assert.equal(result.backgroundImageUrl, "");
+});
+
+test("createFirestoreReadWriteClient fetches donation display config through the read API", async () => {
+  const calls: string[] = [];
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(currentDb, path) {
+        calls.push(`doc:${String((currentDb as { name: string }).name)}:${path}`);
+        return { currentDb, path };
+      },
+      getDoc: async () => ({
+        data: () => ({
+          enabled: false,
+          headline: "Test Headline",
+          message: "Test Message",
+          cta: "Test CTA",
+          qrLabel: "Test QR Label",
+          qrUrl: "https://test.com",
+          backgroundImageUrl: "",
+        }),
+        exists: () => true,
+      }),
+      getDocs: async () => ({ docs: [] }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async () => {
+        throw new Error("setDoc not used");
+      },
+    },
+    db,
+  );
+
+  const result = await client.fetchDonationDisplayConfig();
+  assert.deepEqual(calls, ["doc:lite-db:settings/donationDisplay"]);
+  assert.equal(result.enabled, false);
+  assert.equal(result.headline, "Test Headline");
+  assert.equal(result.message, "Test Message");
+});
+
+test("createFirestoreReadWriteClient fetchDonationDisplayConfig returns defaults when doc does not exist", async () => {
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc() {
+        return { path: "settings/donationDisplay" };
+      },
+      getDoc: async () => ({
+        data: () => undefined,
+        exists: () => false,
+      }),
+      getDocs: async () => ({ docs: [] }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async () => {
+        throw new Error("setDoc not used");
+      },
+    },
+    db,
+  );
+
+  const result = await client.fetchDonationDisplayConfig();
+  assert.equal(result.enabled, true);
+  assert.equal(result.headline, "DONATE HERE TODAY");
+});
+
+test("createFirestoreReadWriteClient saveDonationDisplayConfig writes to the correct path", async () => {
+  const calls: Array<{ kind: string; value: unknown }> = [];
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(currentDb, path) {
+        calls.push({ kind: "doc", value: { currentDb, path } });
+        return { currentDb, path };
+      },
+      getDoc: async () => ({
+        data: () => undefined,
+        exists: () => false,
+      }),
+      getDocs: async () => ({ docs: [] }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async (ref, config) => {
+        calls.push({ kind: "setDoc", value: { ref, config } });
+      },
+    },
+    db,
+  );
+
+  await client.saveDonationDisplayConfig({
+    enabled: true,
+    headline: "Save Test",
+    message: "Save Message",
+    cta: "Save CTA",
+    qrLabel: "Save QR",
+    qrUrl: "https://save.com",
+    backgroundImageUrl: "",
+  });
+
+  assert.deepEqual(calls, [
+    {
+      kind: "doc",
+      value: {
+        currentDb: db,
+        path: "settings/donationDisplay",
+      },
+    },
+    {
+      kind: "setDoc",
+      value: {
+        ref: { currentDb: db, path: "settings/donationDisplay" },
+        config: {
+          enabled: true,
+          headline: "Save Test",
+          message: "Save Message",
+          cta: "Save CTA",
+          qrLabel: "Save QR",
+          qrUrl: "https://save.com",
+          backgroundImageUrl: "",
+        },
+      },
+    },
+  ]);
+});
+
+test("saveDonationDisplayConfig does not write undefined values to Firestore", async () => {
+  const calls: Array<{ kind: string; value: unknown }> = [];
+  const db = { name: "lite-db" } as never;
+  const client = createFirestoreReadWriteClient(
+    {
+      collection() {
+        throw new Error("collection not used");
+      },
+      deleteDoc: async () => {},
+      doc(currentDb, path) {
+        return { currentDb, path };
+      },
+      getDoc: async () => ({
+        data: () => undefined,
+        exists: () => false,
+      }),
+      getDocs: async () => ({ docs: [] }),
+      orderBy() {
+        throw new Error("orderBy not used");
+      },
+      query() {
+        throw new Error("query not used");
+      },
+      setDoc: async (ref, config) => {
+        calls.push({ kind: "setDoc", value: { ref, config } });
+      },
+    },
+    db,
+  );
+
+  await client.saveDonationDisplayConfig({
+    enabled: true,
+    headline: "Test",
+    message: "",
+    cta: "CTA",
+    qrLabel: "Label",
+    qrUrl: "https://url.com",
+    backgroundImageUrl: "",
+  });
+
+  const setDocCall = calls.find((c) => c.kind === "setDoc");
+  const config = setDocCall?.value.config as Record<string, unknown>;
+  for (const [key, value] of Object.entries(config)) {
+    assert.ok(
+      value !== undefined,
+      `Expected ${key} to not be undefined, but got ${JSON.stringify(value)}`,
+    );
+  }
+});
+
+test("normalizeDonationDisplayConfig uses new fields when provided", () => {
+  const input = {
+    enabled: true,
+    titleLine1: "SUPPORT",
+    titleLine2: "OUR MASJID",
+    subtitle: "Your help matters",
+    mainMessage: "WE NEED YOU",
+    ctaText: "DONATE NOW",
+    qrUrl: "https://example.com/donate",
+    impactText: "£500 raised",
+    showImpactText: true,
+    motionEnabled: false,
+  };
+  const result = normalizeDonationDisplayConfig(input);
+  assert.equal(result.titleLine1, "SUPPORT");
+  assert.equal(result.titleLine2, "OUR MASJID");
+  assert.equal(result.subtitle, "Your help matters");
+  assert.equal(result.mainMessage, "WE NEED YOU");
+  assert.equal(result.ctaText, "DONATE NOW");
+  assert.equal(result.impactText, "£500 raised");
+  assert.equal(result.showImpactText, true);
+  assert.equal(result.motionEnabled, false);
+});
+
+test("normalizeDonationDisplayConfig falls back for missing new fields", () => {
+  const result = normalizeDonationDisplayConfig({ enabled: true });
+  assert.equal(result.titleLine1, DEFAULT_DONATION_DISPLAY_CONFIG.titleLine1);
+  assert.equal(result.titleLine2, DEFAULT_DONATION_DISPLAY_CONFIG.titleLine2);
+  assert.equal(result.subtitle, DEFAULT_DONATION_DISPLAY_CONFIG.subtitle);
+  assert.equal(result.mainMessage, DEFAULT_DONATION_DISPLAY_CONFIG.mainMessage);
+  assert.equal(result.ctaText, DEFAULT_DONATION_DISPLAY_CONFIG.ctaText);
+  assert.equal(result.showImpactText, DEFAULT_DONATION_DISPLAY_CONFIG.showImpactText);
+  assert.equal(result.showQrCode, DEFAULT_DONATION_DISPLAY_CONFIG.showQrCode);
+  assert.equal(result.motionEnabled, DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled);
+});
+
+test("normalizeDonationDisplayConfig defaults showImpactText to false when missing", () => {
+  const result = normalizeDonationDisplayConfig({ enabled: true, showImpactText: undefined as unknown });
+  assert.equal(result.showImpactText, false);
+});
+
+test("normalizeDonationDisplayConfig defaults motionEnabled to true when missing", () => {
+  const result = normalizeDonationDisplayConfig({ enabled: true, motionEnabled: undefined as unknown });
+  assert.equal(result.motionEnabled, true);
+});
+
+test("normalizeDonationDisplayConfig defaults showQrCode to true when missing", () => {
+  const result = normalizeDonationDisplayConfig({ enabled: true, showQrCode: undefined as unknown });
+  assert.equal(result.showQrCode, true);
+});
+
+test("normalizeDonationDisplayConfig respects showQrCode false when provided", () => {
+  const result = normalizeDonationDisplayConfig({ enabled: true, showQrCode: false });
+  assert.equal(result.showQrCode, false);
 });

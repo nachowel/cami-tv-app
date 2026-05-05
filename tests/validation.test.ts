@@ -5,6 +5,7 @@ import {
   validateAnnouncement,
   validateDailyContent,
   validateDonationAmount,
+  validateDonationDisplayQrUrl,
   validateDonationUrl,
   validatePrayerTime,
   validateTicker,
@@ -124,4 +125,45 @@ test("validateTicker rejects invalid type", () => {
 
   assert.equal(result.valid, false);
   assert.ok(result.errors.includes("Tür hadis veya mesaj olmalıdır."));
+});
+
+test("validateDonationDisplayQrUrl: showQrCode=true + empty qrUrl => error", () => {
+  const result = validateDonationDisplayQrUrl({ qrUrl: "", showQrCode: true });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes("QR URL is required when Show QR code is enabled."));
+});
+
+test("validateDonationDisplayQrUrl: showQrCode=false + empty qrUrl => allowed", () => {
+  const result = validateDonationDisplayQrUrl({ qrUrl: "", showQrCode: false });
+
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.errors, []);
+});
+
+test("validateDonationDisplayQrUrl: showQrCode=true + invalid qrUrl => error", () => {
+  const missingProtocol = validateDonationDisplayQrUrl({ qrUrl: "icmgbexley.org.uk/donate", showQrCode: true });
+  const ftp = validateDonationDisplayQrUrl({ qrUrl: "ftp://example.org/donate", showQrCode: true });
+
+  assert.equal(missingProtocol.valid, false);
+  assert.ok(missingProtocol.errors.includes("QR URL must be a valid http/https address."));
+  assert.equal(ftp.valid, false);
+  assert.ok(ftp.errors.includes("QR URL must be a valid http/https address."));
+});
+
+test("validateDonationDisplayQrUrl: showQrCode=false + invalid qrUrl => warning (still invalid)", () => {
+  const result = validateDonationDisplayQrUrl({ qrUrl: "not-a-url", showQrCode: false });
+
+  assert.equal(result.valid, false);
+  assert.ok(result.errors.includes("QR URL must be a valid http/https address."));
+});
+
+test("validateDonationDisplayQrUrl accepts http and https URLs", () => {
+  const http = validateDonationDisplayQrUrl({ qrUrl: "http://example.org/donate", showQrCode: true });
+  const https = validateDonationDisplayQrUrl({ qrUrl: "https://icmgbexley.org.uk/donate", showQrCode: false });
+
+  assert.equal(http.valid, true);
+  assert.deepEqual(http.errors, []);
+  assert.equal(https.valid, true);
+  assert.deepEqual(https.errors, []);
 });

@@ -1,6 +1,7 @@
 import { Suspense, lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import TvDisplay from "./routes/TvDisplay";
+import DonationDisplay from "./routes/DonationDisplay";
 import { loadAdminPanelRoute } from "./routes/routeLoaders";
 
 const AdminPanel = lazy(loadAdminPanelRoute);
@@ -10,6 +11,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<TvDisplay />} />
       <Route path="/tv" element={<TvDisplay />} />
+      <Route path="/donation" element={<DonationDisplay />} />
       <Route
         path="/admin"
         element={(

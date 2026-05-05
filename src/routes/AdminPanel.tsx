@@ -3,6 +3,8 @@ import { AdminUsersSection } from "../components/admin/AdminUsersSection";
 import { AnnouncementsSection } from "../components/admin/AnnouncementsSection";
 import type { SectionStatus } from "../components/admin/AdminStatusNotice";
 import { DailyContentSection } from "../components/admin/DailyContentSection";
+import { DonationDisplaySettingsSection } from "../components/admin/DonationDisplaySettingsSection";
+import { DONATION_DISPLAY_PRESETS } from "../components/admin/donationDisplayPresets";
 import { DonationSettingsSection } from "../components/admin/DonationSettingsSection";
 import { FooterTickerSection } from "../components/admin/FooterTickerSection";
 import { resolveAdminDisplayData } from "../components/admin/adminFirestoreState";
@@ -36,17 +38,20 @@ import type {
   DisplayData,
   DisplaySettings,
   DonationCurrent,
+  DonationDisplayConfig,
   PrayerTimeSourceSettings,
   PrayerTimesCurrent,
   PrayerTimesForDay,
   TickerCurrent,
 } from "../types/display";
 import {
+  DEFAULT_DONATION_DISPLAY_CONFIG,
   deleteAnnouncement as deleteAnnouncementDocument,
   fetchAnnouncements,
   fetchDailyContentCurrent,
   fetchDisplaySettings,
   fetchDonationCurrent,
+  fetchDonationDisplayConfig,
   fetchPrayerTimeSettings,
   fetchPrayerTimesCurrent,
   fetchTickerCurrent,
@@ -54,6 +59,7 @@ import {
   saveDailyContentCurrent,
   saveDisplaySettings,
   saveDonationCurrent,
+  saveDonationDisplayConfig,
   savePrayerTimeSettings,
   savePrayerTimesCurrent,
   saveTickerCurrent,
@@ -67,6 +73,8 @@ import {
   validateAnnouncement,
   validateDailyContent,
   validateDonationAmount,
+  validateBackgroundImageUrl,
+  validateDonationDisplayQrUrl,
   validateDonationUrl,
   validatePrayerTime,
   validateTicker,
@@ -76,6 +84,7 @@ import { createDefaultPrayerTimeSourceSettings } from "../utils/prayerTimeSource
 type SectionStatusKey =
   | "language"
   | "donation"
+  | "donationDisplay"
   | "announcements"
   | "prayerTimes"
   | "dailyContent"
@@ -94,6 +103,7 @@ type AdminSectionId =
   | "admin-users"
   | "language-settings"
   | "donation-settings"
+  | "donation-display"
   | "announcements"
   | "prayer-times"
   | "daily-content"
@@ -131,6 +141,64 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     mockDisplayData.donation.weekly_amount.toString(),
   );
   const [donationUrlDraft, setDonationUrlDraft] = useState(mockDisplayData.donation.donation_url);
+  const [donationDisplayConfig, setDonationDisplayConfig] = useState<DonationDisplayConfig>({
+    enabled: true,
+    headline: "DONATE HERE TODAY",
+    message: "Without your donation, this masjid stops.",
+    cta: "Cash or Card Accepted Here ↓",
+    qrLabel: "Prefer online? Scan",
+    titleLine1: "DONATE",
+    titleLine2: "HERE TODAY",
+    subtitle: "Without your donation, this masjid cannot continue.",
+    mainMessage: "THIS MASJID CANNOT CONTINUE",
+    ctaText: "GIVE NOW — CASH OR CARD ↓",
+    qrUrl: "https://www.icmgbexley.org.uk/donation",
+    backgroundImageUrl: "",
+    impactText: "",
+    showImpactText: false,
+    showQrCode: true,
+    displayMode: "component" as "component" | "image",
+    qrOverlayEnabled: true,
+    qrOverlayXPercent: 82,
+    qrOverlayYPercent: 67,
+    qrOverlaySizePercent: 12,
+    motionEnabled: true,
+  });
+  const [donationDisplayDraft, setDonationDisplayDraft] = useState<{
+    titleLine1: string;
+    titleLine2: string;
+    subtitle: string;
+    mainMessage: string;
+    ctaText: string;
+    qrUrl: string;
+    impactText: string;
+    showImpactText: boolean;
+    showQrCode: boolean;
+    displayMode: "component" | "image";
+    backgroundImageUrl: string;
+    qrOverlayEnabled: boolean;
+    qrOverlayXPercent: number;
+    qrOverlayYPercent: number;
+    qrOverlaySizePercent: number;
+    motionEnabled: boolean;
+  }>({
+    titleLine1: "DONATE",
+    titleLine2: "HERE TODAY",
+    subtitle: "Without your donation, this masjid cannot continue.",
+    mainMessage: "THIS MASJID CANNOT CONTINUE",
+    ctaText: "GIVE NOW — CASH OR CARD ↓",
+    qrUrl: "https://www.icmgbexley.org.uk/donation",
+    impactText: "",
+    showImpactText: false,
+    showQrCode: true,
+    displayMode: "component",
+    backgroundImageUrl: "",
+    qrOverlayEnabled: true,
+    qrOverlayXPercent: 82,
+    qrOverlayYPercent: 67,
+    qrOverlaySizePercent: 12,
+    motionEnabled: true,
+  });
   const [announcements, setAnnouncements] = useState<Announcement[]>(mockDisplayData.announcements);
   const [announcementDraft, setAnnouncementDraft] = useState<AdminAnnouncementDraft>(
     createAnnouncementDraft(),
@@ -155,6 +223,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   const [statusBySection, setStatusBySection] = useState<Record<SectionStatusKey, SectionStatus | null>>({
     language: null,
     donation: null,
+    donationDisplay: null,
     announcements: null,
     prayerTimes: null,
     dailyContent: null,
@@ -165,6 +234,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   const [firestoreFallbackWarning, setFirestoreFallbackWarning] = useState<string | null>(null);
   const [isLoadingFirestoreData, setIsLoadingFirestoreData] = useState(true);
   const [showDonationErrors, setShowDonationErrors] = useState(false);
+  const [showDonationDisplayErrors, setShowDonationDisplayErrors] = useState(false);
   const [showAnnouncementErrors, setShowAnnouncementErrors] = useState(false);
   const [showPrayerTimeErrors, setShowPrayerTimeErrors] = useState(false);
   const [showDailyContentErrors, setShowDailyContentErrors] = useState(false);
@@ -215,6 +285,22 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         type: tickerDraft.type,
       }),
     [tickerDraft],
+  );
+  const donationDisplayQrUrlValidation = useMemo(
+    () =>
+      validateDonationDisplayQrUrl({
+        qrUrl: donationDisplayDraft.qrUrl,
+        showQrCode: donationDisplayDraft.showQrCode,
+      }),
+    [donationDisplayDraft.qrUrl, donationDisplayDraft.showQrCode],
+  );
+  const donationDisplayBackgroundImageUrlValidation = useMemo(
+    () =>
+      validateBackgroundImageUrl({
+        backgroundImageUrl: donationDisplayDraft.backgroundImageUrl,
+        displayMode: donationDisplayDraft.displayMode,
+      }),
+    [donationDisplayDraft.backgroundImageUrl, donationDisplayDraft.displayMode],
   );
   const donationErrors = showDonationErrors
     ? {
@@ -270,6 +356,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       const [
         settingsResult,
         donationResult,
+        donationDisplayResult,
         prayerTimeSourceSettingsResult,
         prayerTimesResult,
         dailyContentResult,
@@ -279,6 +366,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         await Promise.allSettled([
           fetchDisplaySettings(),
           fetchDonationCurrent(),
+          fetchDonationDisplayConfig(),
           fetchPrayerTimeSettings(),
           fetchPrayerTimesCurrent(),
           fetchDailyContentCurrent(),
@@ -303,6 +391,28 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       );
 
       applyDisplayData(resolved.data);
+      if (donationDisplayResult.status === "fulfilled" && donationDisplayResult.value) {
+        const cfg = donationDisplayResult.value;
+        setDonationDisplayConfig(cfg);
+        setDonationDisplayDraft({
+          titleLine1: cfg.titleLine1,
+          titleLine2: cfg.titleLine2,
+          subtitle: cfg.subtitle,
+          mainMessage: cfg.mainMessage,
+          ctaText: cfg.ctaText,
+          qrUrl: cfg.qrUrl,
+          impactText: cfg.impactText ?? "",
+          showImpactText: cfg.showImpactText,
+          showQrCode: cfg.showQrCode,
+          displayMode: cfg.displayMode,
+          backgroundImageUrl: cfg.backgroundImageUrl,
+          qrOverlayEnabled: cfg.qrOverlayEnabled,
+          qrOverlayXPercent: cfg.qrOverlayXPercent,
+          qrOverlayYPercent: cfg.qrOverlayYPercent,
+          qrOverlaySizePercent: cfg.qrOverlaySizePercent,
+          motionEnabled: cfg.motionEnabled,
+        });
+      }
       setPrayerTimeSourceSettings(
         prayerTimeSourceSettingsResult.status === "fulfilled"
           ? prayerTimeSourceSettingsResult.value
@@ -374,6 +484,104 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     }
 
     updateSectionStatus("donation", result.status);
+  }
+
+  function handleDonationDisplayPresetSelect(presetId: string) {
+    const preset = DONATION_DISPLAY_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    setDonationDisplayDraft((prev) => ({
+      ...prev,
+      titleLine1: preset.titleLine1,
+      titleLine2: preset.titleLine2,
+      subtitle: preset.subtitle,
+      ctaText: preset.ctaText,
+    }));
+  }
+
+  function handleDonationDisplayReset() {
+    const confirmed = window.confirm("Reset donation display to default values?");
+    if (!confirmed) return;
+    setDonationDisplayDraft({
+      titleLine1: DEFAULT_DONATION_DISPLAY_CONFIG.titleLine1,
+      titleLine2: DEFAULT_DONATION_DISPLAY_CONFIG.titleLine2,
+      subtitle: DEFAULT_DONATION_DISPLAY_CONFIG.subtitle,
+      mainMessage: DEFAULT_DONATION_DISPLAY_CONFIG.mainMessage,
+      ctaText: DEFAULT_DONATION_DISPLAY_CONFIG.ctaText,
+      qrUrl: DEFAULT_DONATION_DISPLAY_CONFIG.qrUrl,
+      impactText: DEFAULT_DONATION_DISPLAY_CONFIG.impactText ?? "",
+      showImpactText: DEFAULT_DONATION_DISPLAY_CONFIG.showImpactText,
+      showQrCode: DEFAULT_DONATION_DISPLAY_CONFIG.showQrCode,
+      displayMode: DEFAULT_DONATION_DISPLAY_CONFIG.displayMode,
+      backgroundImageUrl: DEFAULT_DONATION_DISPLAY_CONFIG.backgroundImageUrl,
+      qrOverlayEnabled: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayEnabled,
+      qrOverlayXPercent: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayXPercent,
+      qrOverlayYPercent: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayYPercent,
+      qrOverlaySizePercent: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlaySizePercent,
+      motionEnabled: DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled,
+    });
+    setShowDonationDisplayErrors(false);
+  }
+
+  async function handleDonationDisplaySubmit() {
+    if (!donationDisplayQrUrlValidation.valid || !donationDisplayBackgroundImageUrlValidation.valid) {
+      setShowDonationDisplayErrors(true);
+      updateSectionStatus("donationDisplay", null);
+      return;
+    }
+
+    const nextConfig: DonationDisplayConfig = {
+      ...donationDisplayConfig,
+      titleLine1: donationDisplayDraft.titleLine1.trim(),
+      titleLine2: donationDisplayDraft.titleLine2.trim(),
+      subtitle: donationDisplayDraft.subtitle.trim(),
+      mainMessage: donationDisplayDraft.mainMessage.trim(),
+      ctaText: donationDisplayDraft.ctaText.trim(),
+      qrUrl: donationDisplayDraft.qrUrl.trim(),
+      impactText: donationDisplayDraft.impactText.trim(),
+      showImpactText: donationDisplayDraft.showImpactText,
+      showQrCode: donationDisplayDraft.showQrCode,
+      displayMode: donationDisplayDraft.displayMode,
+      backgroundImageUrl: donationDisplayDraft.backgroundImageUrl.trim(),
+      qrOverlayEnabled: donationDisplayDraft.qrOverlayEnabled,
+      qrOverlayXPercent: donationDisplayDraft.qrOverlayXPercent,
+      qrOverlayYPercent: donationDisplayDraft.qrOverlayYPercent,
+      qrOverlaySizePercent: donationDisplayDraft.qrOverlaySizePercent,
+      motionEnabled: donationDisplayDraft.motionEnabled,
+    };
+
+    updateSectionStatus("donationDisplay", createSavingStatus("Kaydediliyor..."));
+
+    const result = await commitAdminSectionSave({
+      isAuthenticated,
+      nextValue: nextConfig,
+      persist: saveDonationDisplayConfig,
+      successMessage: "Kaydedildi.",
+    });
+
+    if (result.valueToApply) {
+      setDonationDisplayConfig(result.valueToApply);
+      setDonationDisplayDraft({
+        titleLine1: result.valueToApply.titleLine1,
+        titleLine2: result.valueToApply.titleLine2,
+        subtitle: result.valueToApply.subtitle,
+        mainMessage: result.valueToApply.mainMessage,
+        ctaText: result.valueToApply.ctaText,
+        qrUrl: result.valueToApply.qrUrl,
+        impactText: result.valueToApply.impactText ?? "",
+        showImpactText: result.valueToApply.showImpactText,
+        showQrCode: result.valueToApply.showQrCode,
+        displayMode: result.valueToApply.displayMode,
+        backgroundImageUrl: result.valueToApply.backgroundImageUrl,
+        qrOverlayEnabled: result.valueToApply.qrOverlayEnabled,
+        qrOverlayXPercent: result.valueToApply.qrOverlayXPercent,
+        qrOverlayYPercent: result.valueToApply.qrOverlayYPercent,
+        qrOverlaySizePercent: result.valueToApply.qrOverlaySizePercent,
+        motionEnabled: result.valueToApply.motionEnabled,
+      });
+      setShowDonationDisplayErrors(false);
+    }
+
+    updateSectionStatus("donationDisplay", result.status);
   }
 
   function handleStartNewAnnouncement() {
@@ -754,6 +962,50 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             onMobileToggle={() => setActiveMobileSection("donation-settings")}
             onSubmit={handleDonationSubmit}
             status={statusBySection.donation}
+          />
+
+          <DonationDisplaySettingsSection
+            backgroundImageUrl={donationDisplayDraft.backgroundImageUrl}
+            backgroundImageUrlError={showDonationDisplayErrors ? donationDisplayBackgroundImageUrlValidation.fieldErrors.backgroundImageUrl : undefined}
+            ctaText={donationDisplayDraft.ctaText}
+            displayMode={donationDisplayDraft.displayMode}
+            id="donation-display"
+            impactText={donationDisplayDraft.impactText}
+            mainMessage={donationDisplayDraft.mainMessage}
+            mobileOpen={activeMobileSection === "donation-display"}
+            motionEnabled={donationDisplayDraft.motionEnabled}
+            onBackgroundImageUrlChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, backgroundImageUrl: value }))}
+            onCtaTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, ctaText: value }))}
+            onDisplayModeChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, displayMode: value }))}
+            onImpactTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, impactText: value }))}
+            onMainMessageChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, mainMessage: value }))}
+            onMobileToggle={() => setActiveMobileSection("donation-display")}
+            onMotionEnabledChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, motionEnabled: value }))}
+            onQrOverlayEnabledChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlayEnabled: value }))}
+            onQrOverlaySizePercentChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlaySizePercent: value }))}
+            onQrOverlayXPercentChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlayXPercent: value }))}
+            onQrOverlayYPercentChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlayYPercent: value }))}
+            onQrUrlChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrUrl: value }))}
+            onReset={handleDonationDisplayReset}
+            onShowImpactTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, showImpactText: value }))}
+            onShowQrCodeChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, showQrCode: value }))}
+            onPresetSelect={handleDonationDisplayPresetSelect}
+            onSubmit={handleDonationDisplaySubmit}
+            onSubtitleChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, subtitle: value }))}
+            onTitleLine1Change={(value) => setDonationDisplayDraft((prev) => ({ ...prev, titleLine1: value }))}
+            onTitleLine2Change={(value) => setDonationDisplayDraft((prev) => ({ ...prev, titleLine2: value }))}
+            qrOverlayEnabled={donationDisplayDraft.qrOverlayEnabled}
+            qrOverlaySizePercent={donationDisplayDraft.qrOverlaySizePercent}
+            qrOverlayXPercent={donationDisplayDraft.qrOverlayXPercent}
+            qrOverlayYPercent={donationDisplayDraft.qrOverlayYPercent}
+            qrUrl={donationDisplayDraft.qrUrl}
+            qrUrlError={showDonationDisplayErrors ? donationDisplayQrUrlValidation.fieldErrors.qrUrl : undefined}
+            showImpactText={donationDisplayDraft.showImpactText}
+            showQrCode={donationDisplayDraft.showQrCode}
+            status={statusBySection.donationDisplay}
+            subtitle={donationDisplayDraft.subtitle}
+            titleLine1={donationDisplayDraft.titleLine1}
+            titleLine2={donationDisplayDraft.titleLine2}
           />
 
           <AnnouncementsSection

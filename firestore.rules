@@ -18,6 +18,11 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    match /settings/donationDisplay {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /settings/prayerTimes {
       allow read, write: if isAdmin();
     }

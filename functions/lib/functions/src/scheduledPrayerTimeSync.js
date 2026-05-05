@@ -1,4 +1,3 @@
-import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.js";
 import { readPrayerTimeSyncRuntimeOptions, runPrayerTimeSync, } from "./prayerTimeSyncService.js";
 export const SCHEDULED_PRAYER_TIME_SYNC_SCHEDULE = "10 0 * * *";
 export const SCHEDULED_PRAYER_TIME_SYNC_TIME_ZONE = "Europe/London";
@@ -15,7 +14,6 @@ export function createScheduledPrayerTimeSyncHandler({ db, readRuntimeOptions = 
             },
             offsets: runtimeOptions.offsets,
             providerConfig: runtimeOptions.providerConfig,
-            targetPath: FIRESTORE_PATHS.prayerTimesCurrent,
         });
     };
 }

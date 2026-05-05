@@ -118,6 +118,32 @@ export interface TickerCurrent {
   updated_at: IsoDateTime;
 }
 
+export interface DonationDisplayConfig {
+  enabled: boolean;
+  // Legacy fields (kept for backward compatibility)
+  headline: string;
+  message: string;
+  cta: string;
+  qrLabel: string;
+  // New configurable fields
+  titleLine1: string;
+  titleLine2: string;
+  subtitle: string;
+  mainMessage: string;
+  ctaText: string;
+  qrUrl: string;
+  backgroundImageUrl: string;
+  impactText?: string;
+  showImpactText: boolean;
+  showQrCode: boolean;
+  displayMode: "component" | "image";
+  qrOverlayEnabled: boolean;
+  qrOverlayXPercent: number;
+  qrOverlayYPercent: number;
+  qrOverlaySizePercent: number;
+  motionEnabled: boolean;
+}
+
 export interface TvWeather {
   temperatureC: number | null;
   condition: WeatherConditionKey;

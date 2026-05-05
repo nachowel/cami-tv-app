@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { TvDisplayLayout } from "../components/tv/TvDisplayLayout";
 import { startTvDisplaySync } from "../components/tv/tvFirestoreState.ts";
 import { mockDisplayData } from "../data/mockDisplayData";
-import type { DisplayData } from "../types/display";
+import type { DisplayData, PrayerTimesCurrent } from "../types/display";
 import {
   subscribeToAnnouncements,
   subscribeToDailyContentCurrent,
@@ -16,6 +16,8 @@ import { useTvViewportLock } from "./useTvViewportLock";
 export default function TvDisplay() {
   useTvViewportLock();
   const [displayData, setDisplayData] = useState<DisplayData>(mockDisplayData);
+  const [prayerTimesStatus, setPrayerTimesStatus] = useState<"loading" | "ok" | "error">("loading");
+  const [lastSuccessfulPrayerTimes, setLastSuccessfulPrayerTimes] = useState<PrayerTimesCurrent | null>(null);
 
   useEffect(() => {
     const stopSync = startTvDisplaySync({
@@ -24,7 +26,21 @@ export default function TvDisplay() {
         subscribeToDailyContentCurrent,
         subscribeToDisplaySettings,
         subscribeToDonationCurrent,
-        subscribeToPrayerTimesCurrent,
+        subscribeToPrayerTimesCurrent(callback, onError) {
+          return subscribeToPrayerTimesCurrent(
+            (value) => {
+              setPrayerTimesStatus("ok");
+              if (value) {
+                setLastSuccessfulPrayerTimes(value);
+              }
+              callback(value);
+            },
+            (error) => {
+              setPrayerTimesStatus("error");
+              onError?.(error);
+            },
+          );
+        },
         subscribeToTickerCurrent,
       },
       fallback: mockDisplayData,
@@ -47,5 +63,11 @@ export default function TvDisplay() {
     }
   }, [displayData.prayerTimes]);
 
-  return <TvDisplayLayout data={displayData} />;
+  return (
+    <TvDisplayLayout
+      data={displayData}
+      lastSuccessfulPrayerTimes={lastSuccessfulPrayerTimes}
+      prayerTimesStatus={prayerTimesStatus}
+    />
+  );
 }

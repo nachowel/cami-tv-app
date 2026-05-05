@@ -1,11 +1,17 @@
 import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.js";
+import { validatePrayerTimesCurrent } from "./prayerTimesValidation.js";
+import { toPrayerProviderAlias } from "../../src/utils/prayerTimeDocument.js";
 function hasCompleteAutomaticTimes(providerResult) {
     return providerResult.automaticTimes.today != null && providerResult.automaticTimes.tomorrow != null;
 }
 export function applySuccessfulProviderSync(current, providerResult) {
+    const providerAlias = toPrayerProviderAlias(providerResult.providerSource);
     const nextValue = {
         ...current,
+        updatedAt: providerResult.fetchedAt,
         providerSource: providerResult.providerSource,
+        provider: providerAlias,
+        source: providerAlias,
         method: providerResult.method,
         fetchedAt: providerResult.fetchedAt,
         offsets: providerResult.offsets,
@@ -36,8 +42,18 @@ export function createPrayerTimeSyncRunner({ fetchCurrent, fetchProviderResult, 
                     throw new Error("Provider result must include complete today and tomorrow prayer times.");
                 }
                 const nextValue = applySuccessfulProviderSync(current, providerResult);
-                await saveCurrent(nextValue);
-                return nextValue;
+                const validation = validatePrayerTimesCurrent(nextValue);
+                if (!validation.valid) {
+                    const error = new Error(`Prayer times validation failed before Firestore write:\n  ${validation.errors.join("\n  ")}`);
+                    logError("Prayer times validation failed.", error);
+                    throw error;
+                }
+                const validatedValue = {
+                    ...nextValue,
+                    validationStatus: "valid",
+                };
+                await saveCurrent(validatedValue);
+                return validatedValue;
             }
             catch (error) {
                 logError("Aladhan prayer time sync failed.", error);

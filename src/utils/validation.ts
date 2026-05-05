@@ -108,6 +108,65 @@ export function validateDonationUrl(value: string): ValidationResult<"url"> {
   return buildValidationResult({});
 }
 
+export function validateDonationDisplayQrUrl(input: {
+  qrUrl: string;
+  showQrCode: boolean;
+}): ValidationResult<"qrUrl"> {
+  const trimmed = input.qrUrl.trim();
+
+  if (!trimmed) {
+    if (input.showQrCode) {
+      return buildValidationResult({
+        qrUrl: "QR URL is required when Show QR code is enabled.",
+      });
+    }
+    return buildValidationResult({});
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("invalid protocol");
+    }
+  } catch {
+    return buildValidationResult({
+      qrUrl: "QR URL must be a valid http/https address.",
+    });
+  }
+
+  return buildValidationResult({});
+}
+
+export function validateBackgroundImageUrl(input: {
+  backgroundImageUrl: string;
+  displayMode: "component" | "image";
+}): ValidationResult<"backgroundImageUrl"> {
+  const trimmed = input.backgroundImageUrl.trim();
+
+  if (input.displayMode !== "image") {
+    return buildValidationResult({});
+  }
+
+  if (!trimmed) {
+    return buildValidationResult({
+      backgroundImageUrl: "Background image URL is required in image mode.",
+    });
+  }
+
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+      throw new Error("invalid protocol");
+    }
+  } catch {
+    return buildValidationResult({
+      backgroundImageUrl: "Background image URL must be a valid http/https address.",
+    });
+  }
+
+  return buildValidationResult({});
+}
+
 export function validatePrayerTime(value: string): ValidationResult<"time"> {
   if (!value.trim()) {
     return buildValidationResult({
