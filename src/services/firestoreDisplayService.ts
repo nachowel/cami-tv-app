@@ -37,6 +37,10 @@ import {
 import { firebaseApp } from "./firebaseCore.ts";
 import { normalizePrayerTimesCurrent } from "../utils/prayerTimeDocument.ts";
 import { normalizePrayerTimeSourceSettings } from "../utils/prayerTimeSourceSettings.ts";
+import {
+  clampSlideshowIntervalSeconds,
+  normalizeSlideImages,
+} from "../utils/donationDisplaySlideshow.ts";
 
 export { FIRESTORE_PATHS, getAnnouncementDocumentPath } from "../shared/firestorePaths.ts";
 
@@ -216,6 +220,9 @@ export const DEFAULT_DONATION_DISPLAY_CONFIG: DonationDisplayConfig = {
   qrOverlayYPercent: 67,
   qrOverlaySizePercent: 12,
   motionEnabled: true,
+  slideshowEnabled: false,
+  slideshowIntervalSeconds: 30,
+  slideImages: [],
 };
 
 export function normalizeDonationDisplayConfig(value: unknown): DonationDisplayConfig {
@@ -245,6 +252,9 @@ export function normalizeDonationDisplayConfig(value: unknown): DonationDisplayC
     qrOverlayYPercent: typeof value.qrOverlayYPercent === "number" && !Number.isNaN(value.qrOverlayYPercent) ? value.qrOverlayYPercent : DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayYPercent,
     qrOverlaySizePercent: typeof value.qrOverlaySizePercent === "number" && !Number.isNaN(value.qrOverlaySizePercent) ? value.qrOverlaySizePercent : DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlaySizePercent,
     motionEnabled: typeof value.motionEnabled === "boolean" ? value.motionEnabled : DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled,
+    slideshowEnabled: typeof value.slideshowEnabled === "boolean" ? value.slideshowEnabled : DEFAULT_DONATION_DISPLAY_CONFIG.slideshowEnabled,
+    slideshowIntervalSeconds: clampSlideshowIntervalSeconds(value.slideshowIntervalSeconds),
+    slideImages: normalizeSlideImages(Array.isArray(value.slideImages) ? value.slideImages : value.slideImageUrls),
   };
 }
 

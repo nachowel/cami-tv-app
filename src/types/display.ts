@@ -42,6 +42,11 @@ export interface DonationCurrent {
   weekly_amount: number;
   currency: "GBP";
   donation_url: string;
+  slideshowEnabled?: boolean;
+  slideshowIntervalSeconds?: number;
+  slideImages?: DonationSlideImage[];
+  // Legacy field accepted when reading older production documents.
+  slideImageUrls?: string[];
   updated_at: IsoDateTime;
 }
 
@@ -142,6 +147,16 @@ export interface DonationDisplayConfig {
   qrOverlayYPercent: number;
   qrOverlaySizePercent: number;
   motionEnabled: boolean;
+  slideshowEnabled: boolean;
+  slideshowIntervalSeconds: number;
+  slideImages: DonationSlideImage[];
+  // Legacy field accepted when reading older production documents.
+  slideImageUrls?: string[];
+}
+
+export interface DonationSlideImage {
+  imageUrl: string;
+  showQr: boolean;
 }
 
 export interface TvWeather {

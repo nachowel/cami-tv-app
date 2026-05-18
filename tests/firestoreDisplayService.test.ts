@@ -1100,3 +1100,53 @@ test("normalizeDonationDisplayConfig respects showQrCode false when provided", (
   const result = normalizeDonationDisplayConfig({ enabled: true, showQrCode: false });
   assert.equal(result.showQrCode, false);
 });
+
+test("normalizeDonationDisplayConfig defaults slideshow fields", () => {
+  const result = normalizeDonationDisplayConfig({ enabled: true });
+  assert.equal(result.slideshowEnabled, false);
+  assert.equal(result.slideshowIntervalSeconds, 30);
+  assert.deepEqual(result.slideImages, []);
+});
+
+test("normalizeDonationDisplayConfig preserves valid slideshow slide objects", () => {
+  const result = normalizeDonationDisplayConfig({
+    enabled: true,
+    slideshowEnabled: true,
+    slideshowIntervalSeconds: 45,
+    slideImages: [
+      { imageUrl: "https://example.com/one.jpg", showQr: false },
+      { imageUrl: "https://example.com/two.png", showQr: true },
+    ],
+  });
+
+  assert.equal(result.slideshowEnabled, true);
+  assert.equal(result.slideshowIntervalSeconds, 45);
+  assert.deepEqual(result.slideImages, [
+    { imageUrl: "https://example.com/one.jpg", showQr: false },
+    { imageUrl: "https://example.com/two.png", showQr: true },
+  ]);
+});
+
+test("normalizeDonationDisplayConfig migrates legacy slideImageUrls to slideImages with QR visible", () => {
+  const result = normalizeDonationDisplayConfig({
+    enabled: true,
+    slideImageUrls: ["https://example.com/one.jpg", "https://example.com/two.png"],
+  });
+
+  assert.deepEqual(result.slideImages, [
+    { imageUrl: "https://example.com/one.jpg", showQr: true },
+    { imageUrl: "https://example.com/two.png", showQr: true },
+  ]);
+});
+
+test("normalizeDonationDisplayConfig clamps slideshow interval and filters invalid slide objects", () => {
+  const low = normalizeDonationDisplayConfig({
+    slideshowIntervalSeconds: 2,
+    slideImages: [{ imageUrl: "https://example.com/one.jpg", showQr: false }, 42, { imageUrl: "" }],
+  });
+  const high = normalizeDonationDisplayConfig({ slideshowIntervalSeconds: 500 });
+
+  assert.equal(low.slideshowIntervalSeconds, 10);
+  assert.deepEqual(low.slideImages, [{ imageUrl: "https://example.com/one.jpg", showQr: false }]);
+  assert.equal(high.slideshowIntervalSeconds, 300);
+});

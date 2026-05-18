@@ -1,4 +1,5 @@
 import type { DailyContentType, TickerType } from "../types/display";
+import { isHttpImageUrl } from "./donationDisplaySlideshow.ts";
 
 export const dailyContentValidationRules = {
   arabicMaxChars: 180,
@@ -165,6 +166,48 @@ export function validateBackgroundImageUrl(input: {
   }
 
   return buildValidationResult({});
+}
+
+export function validateSlideshowImageUrls(input: {
+  slideImages?: Array<{ imageUrl: string; showQr: boolean }>;
+  slideImageUrls?: string[];
+  slideshowEnabled: boolean;
+}): {
+  errors: string[];
+  fieldErrors: {
+    slideImages?: Array<string | undefined>;
+    slideImageUrls?: Array<string | undefined>;
+  };
+  valid: boolean;
+} {
+  if (!input.slideshowEnabled) {
+    return {
+      errors: [],
+      fieldErrors: {},
+      valid: true,
+    };
+  }
+
+  const slideValues = input.slideImages
+    ? input.slideImages.map((slide) => slide.imageUrl)
+    : input.slideImageUrls ?? [];
+  const slideErrors: Array<string | undefined> = slideValues.map((value) => {
+    const trimmed = value.trim();
+    if (!trimmed) {
+      return undefined;
+    }
+
+    return isHttpImageUrl(trimmed)
+      ? undefined
+      : "Slide image URL must be a valid http/https image address.";
+  });
+  const errors = slideErrors.filter((value): value is string => Boolean(value));
+
+  return {
+    errors,
+    fieldErrors: errors.length > 0 ? { slideImages: slideErrors, slideImageUrls: slideErrors } : {},
+    valid: errors.length === 0,
+  };
 }
 
 export function validatePrayerTime(value: string): ValidationResult<"time"> {

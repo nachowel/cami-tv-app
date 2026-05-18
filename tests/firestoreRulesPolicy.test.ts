@@ -14,3 +14,10 @@ test("firestore rules allow public read and admin write to settings/donationDisp
   assert.match(rules, /match \/settings\/donationDisplay\s*\{[\s\S]*allow read:\s*if true;[\s\S]*\}/);
   assert.match(rules, /match \/settings\/donationDisplay\s*\{[\s\S]*allow write:\s*if isAdmin\(\);[\s\S]*\}/);
 });
+
+test("firestore rules allow public read and admin write to donation/current slideshow fields", () => {
+  const rules = readFileSync("firestore.rules", "utf8");
+
+  assert.match(rules, /match \/donation\/current\s*\{[\s\S]*allow read:\s*if true;[\s\S]*\}/);
+  assert.match(rules, /match \/donation\/current\s*\{[\s\S]*allow write:\s*if isAdmin\(\);[\s\S]*\}/);
+});

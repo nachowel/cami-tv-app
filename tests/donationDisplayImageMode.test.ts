@@ -87,3 +87,54 @@ test("TV clamps QR overlay values before rendering", () => {
   assert.ok(layoutSource.includes("clamp(safeConfig.qrOverlayXPercent, 0, 100)"), "expected X clamp in TV");
   assert.ok(layoutSource.includes("clamp(safeConfig.qrOverlayYPercent, 0, 100)"), "expected Y clamp in TV");
 });
+
+test("slideshow disabled keeps the single background image behavior", () => {
+  assert.ok(layoutSource.includes("const slideshowEnabled = safeConfig.slideshowEnabled === true"), "expected explicit slideshow enabled guard");
+  assert.ok(layoutSource.includes("!slideshowEnabled"), "expected disabled slideshow branch");
+  assert.ok(layoutSource.includes("src={safeConfig.backgroundImageUrl}"), "expected legacy background image src to remain available");
+});
+
+test("slideshow enabled rotates images on the configured interval", () => {
+  assert.ok(layoutSource.includes("setInterval"), "expected slideshow interval timer");
+  assert.ok(layoutSource.includes("slideshowIntervalSeconds * 1000"), "expected seconds-based interval");
+  assert.ok(layoutSource.includes("setActiveSlideIndex"), "expected active slide index update");
+});
+
+test("slideshow skips failed images and preloads next image", () => {
+  assert.ok(layoutSource.includes("new Image()"), "expected image preloading");
+  assert.ok(layoutSource.includes("image.onerror"), "expected preload error handler");
+  assert.ok(layoutSource.includes("image.onload"), "expected preload load handler");
+  assert.ok(layoutSource.includes("failedSlideUrls"), "expected failed image tracking");
+  assert.ok(layoutSource.includes("setFailedSlideUrls"), "expected failed image state update");
+});
+
+test("slideshow preload handlers are cleaned up on config changes", () => {
+  assert.ok(layoutSource.includes("image.onerror = null"), "expected preload error handler cleanup");
+  assert.ok(layoutSource.includes("image.onload = null"), "expected preload load handler cleanup");
+});
+
+test("empty slideImageUrls falls back to backgroundImageUrl", () => {
+  assert.ok(layoutSource.includes("resolveDonationSlideshowImages"), "expected centralized slideshow image resolution");
+  assert.ok(layoutSource.includes("backgroundImageUrl"), "expected background image fallback input");
+});
+
+test("TV image mode uses the active slide QR visibility", () => {
+  assert.ok(layoutSource.includes("activeSlideshowSlide"), "expected active slide object");
+  assert.ok(layoutSource.includes("shouldShowQrForDonationSlide(activeSlideshowSlide)"), "expected per-slide QR visibility");
+  assert.ok(layoutSource.includes("showImageModeQr"), "expected image mode QR guard");
+});
+
+test("motion disabled removes slideshow transition animation", () => {
+  assert.ok(layoutSource.includes('transition: motion ? "opacity 700ms ease-in-out" : undefined'), "expected transition to depend on motion");
+});
+
+test("admin has slideshow controls and preview navigation", () => {
+  assert.ok(adminSectionSource.includes("Enable slideshow"), "expected slideshow checkbox");
+  assert.ok(adminSectionSource.includes("Slide duration seconds"), "expected slide duration input");
+  assert.ok(adminSectionSource.includes("Slide 1 of"), "expected slide count preview text");
+  assert.ok(adminSectionSource.includes("Previous"), "expected previous preview button");
+  assert.ok(adminSectionSource.includes("Next"), "expected next preview button");
+  assert.ok(adminSectionSource.includes("Add image URL"), "expected add slide button");
+  assert.ok(adminSectionSource.includes("Remove"), "expected remove slide button");
+  assert.ok(adminSectionSource.includes("Show QR on this slide"), "expected per-slide QR checkbox");
+});

@@ -1,7 +1,14 @@
+import { useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import { AdminStatusNotice, type SectionStatus } from "./AdminStatusNotice";
 import { AdminSectionCard } from "./AdminSectionCard";
 import { DONATION_DISPLAY_PRESETS } from "./donationDisplayPresets";
+import { resolveDonationSlideshowImages, type DonationSlideImage } from "../../utils/donationDisplaySlideshow";
+
+export interface DonationImageUploadState {
+  error: string | null;
+  uploading: boolean;
+}
 
 interface DonationDisplaySettingsSectionProps {
   id?: string;
@@ -21,11 +28,17 @@ interface DonationDisplaySettingsSectionProps {
   displayMode: "component" | "image";
   backgroundImageUrl: string;
   backgroundImageUrlError?: string;
+  backgroundImageUploadState: DonationImageUploadState;
   qrOverlayEnabled: boolean;
   qrOverlayXPercent: number;
   qrOverlayYPercent: number;
   qrOverlaySizePercent: number;
   motionEnabled: boolean;
+  slideshowEnabled: boolean;
+  slideshowIntervalSeconds: number;
+  slideImages: DonationSlideImage[];
+  slideImageUrlErrors?: Array<string | undefined>;
+  slideImageUploadStates: DonationImageUploadState[];
   onTitleLine1Change: (value: string) => void;
   onTitleLine2Change: (value: string) => void;
   onSubtitleChange: (value: string) => void;
@@ -37,11 +50,20 @@ interface DonationDisplaySettingsSectionProps {
   onShowQrCodeChange: (value: boolean) => void;
   onDisplayModeChange: (value: "component" | "image") => void;
   onBackgroundImageUrlChange: (value: string) => void;
+  onBackgroundImageUpload: (file: File) => void;
   onQrOverlayEnabledChange: (value: boolean) => void;
   onQrOverlayXPercentChange: (value: number) => void;
   onQrOverlayYPercentChange: (value: number) => void;
   onQrOverlaySizePercentChange: (value: number) => void;
   onMotionEnabledChange: (value: boolean) => void;
+  onSlideshowEnabledChange: (value: boolean) => void;
+  onSlideshowIntervalSecondsChange: (value: number) => void;
+  onSlideImageUrlChange: (index: number, value: string) => void;
+  onSlideImageShowQrChange: (index: number, value: boolean) => void;
+  onSlideImageUpload: (index: number, file: File) => void;
+  onAddSlideImageUrl: () => void;
+  onRemoveSlideImageUrl: (index: number) => void;
+  onMoveSlideImageUrl: (index: number, direction: -1 | 1) => void;
   onPresetSelect: (presetId: string) => void;
   onReset: () => void;
   onSubmit: () => void;
@@ -65,11 +87,17 @@ export function DonationDisplaySettingsSection({
   displayMode,
   backgroundImageUrl,
   backgroundImageUrlError,
+  backgroundImageUploadState,
   qrOverlayEnabled,
   qrOverlayXPercent,
   qrOverlayYPercent,
   qrOverlaySizePercent,
   motionEnabled,
+  slideshowEnabled,
+  slideshowIntervalSeconds,
+  slideImages,
+  slideImageUrlErrors,
+  slideImageUploadStates,
   onTitleLine1Change,
   onTitleLine2Change,
   onSubtitleChange,
@@ -81,19 +109,59 @@ export function DonationDisplaySettingsSection({
   onShowQrCodeChange,
   onDisplayModeChange,
   onBackgroundImageUrlChange,
+  onBackgroundImageUpload,
   onQrOverlayEnabledChange,
   onQrOverlayXPercentChange,
   onQrOverlayYPercentChange,
   onQrOverlaySizePercentChange,
   onMotionEnabledChange,
+  onSlideshowEnabledChange,
+  onSlideshowIntervalSecondsChange,
+  onSlideImageUrlChange,
+  onSlideImageShowQrChange,
+  onSlideImageUpload,
+  onAddSlideImageUrl,
+  onRemoveSlideImageUrl,
+  onMoveSlideImageUrl,
   onPresetSelect,
   onReset,
   onSubmit,
 }: DonationDisplaySettingsSectionProps) {
   const isImageMode = displayMode === "image";
+  const [slideshowPreviewIndex, setSlideshowPreviewIndex] = useState(0);
+  const slideshowPreviewImages = useMemo(
+    () =>
+      resolveDonationSlideshowImages({
+        backgroundImageUrl,
+        backgroundShowQr: showQrCode,
+        slideImages,
+      }),
+    [backgroundImageUrl, showQrCode, slideImages],
+  );
+  const slideshowPreviewImageUrls = slideshowPreviewImages.map((slide) => slide.imageUrl);
+  const previewImageUrl =
+    slideshowEnabled && slideshowPreviewImageUrls.length > 0
+      ? slideshowPreviewImageUrls[slideshowPreviewIndex % slideshowPreviewImageUrls.length]
+      : backgroundImageUrl.trim();
+  const previewSlideCount = slideshowEnabled ? Math.max(slideshowPreviewImageUrls.length, 1) : 1;
+  const previewSlideNumber = slideshowEnabled && slideshowPreviewImageUrls.length > 0
+    ? (slideshowPreviewIndex % slideshowPreviewImageUrls.length) + 1
+    : 1;
+  const hasPreviewImage = (isImageMode && previewImageUrl.length > 0) || (isImageMode && backgroundImageUrl.trim().length > 0);
 
   function clamp(value: number, min: number, max: number) {
     return Math.max(min, Math.min(max, value));
+  }
+
+  function handlePreviewStep(direction: -1 | 1) {
+    if (slideshowPreviewImageUrls.length <= 0) {
+      setSlideshowPreviewIndex(0);
+      return;
+    }
+
+    setSlideshowPreviewIndex((current) =>
+      (current + direction + slideshowPreviewImageUrls.length) % slideshowPreviewImageUrls.length,
+    );
   }
   return (
     <AdminSectionCard
@@ -227,6 +295,16 @@ export function DonationDisplaySettingsSection({
             />
             <span className="text-sm font-semibold text-slate-700">Enable motion/animations</span>
           </label>
+
+          <label className="flex items-center gap-2">
+            <input
+              checked={slideshowEnabled}
+              className="h-5 w-5 rounded border-slate-300 text-emerald-700"
+              onChange={(event) => onSlideshowEnabledChange(event.target.checked)}
+              type="checkbox"
+            />
+            <span className="text-sm font-semibold text-slate-700">Enable slideshow</span>
+          </label>
         </div>
       </div>
 
@@ -257,20 +335,147 @@ export function DonationDisplaySettingsSection({
 
       {isImageMode && (
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <label className="block sm:col-span-2">
+          <div className="block sm:col-span-2">
             <span className="text-sm font-semibold text-slate-700">Background Image URL</span>
-            <input
-              className={`mt-2 min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
-                backgroundImageUrlError ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
-              }`}
-              onChange={(event) => onBackgroundImageUrlChange(event.target.value)}
-              placeholder="https://example.org/donation-bg.jpg"
-              type="url"
-              value={backgroundImageUrl}
-            />
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <input
+                className={`min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+                  backgroundImageUrlError ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
+                }`}
+                onChange={(event) => onBackgroundImageUrlChange(event.target.value)}
+                placeholder="https://example.org/donation-bg.jpg"
+                type="url"
+                value={backgroundImageUrl}
+              />
+              <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 ${backgroundImageUploadState.uploading ? "pointer-events-none opacity-60" : ""}`}>
+                <input
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  disabled={backgroundImageUploadState.uploading}
+                  onChange={(event) => {
+                    const file = event.currentTarget.files?.[0];
+                    if (file) {
+                      onBackgroundImageUpload(file);
+                    }
+                    event.currentTarget.value = "";
+                  }}
+                  type="file"
+                />
+                {backgroundImageUploadState.uploading ? "Uploading..." : "Upload image"}
+              </label>
+            </div>
             <p className="mt-2 text-xs text-slate-500">Use a 16:9 image for best TV fit.</p>
             {backgroundImageUrlError ? <p className="mt-2 text-sm font-medium text-red-700">{backgroundImageUrlError}</p> : null}
-          </label>
+            {backgroundImageUploadState.error ? <p className="mt-2 text-sm font-medium text-red-700">{backgroundImageUploadState.error}</p> : null}
+          </div>
+
+          {slideshowEnabled && (
+            <div className="sm:col-span-2">
+              <label className="block">
+                <span className="text-sm font-semibold text-slate-700">Slide duration seconds</span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-700"
+                  inputMode="numeric"
+                  max={300}
+                  min={10}
+                  onChange={(event) => onSlideshowIntervalSecondsChange(clamp(Number(event.target.value), 10, 300))}
+                  type="number"
+                  value={slideshowIntervalSeconds}
+                />
+              </label>
+
+              <div className="mt-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-semibold text-slate-700">Extra slideshow image URLs</span>
+                  <button
+                    className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    onClick={onAddSlideImageUrl}
+                    type="button"
+                  >
+                    Add image URL
+                  </button>
+                </div>
+                {slideImages.map((slideImage, index) => (
+                  <div className="rounded-lg border border-slate-200 bg-white p-3" key={index}>
+                    {(() => {
+                      const slideImageUploadState = slideImageUploadStates[index] ?? { error: null, uploading: false };
+
+                      return (
+                        <>
+                    <div className="block">
+                      <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Extra slide {index + 2}</span>
+                      <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+                        <input
+                          className={`min-h-11 w-full rounded-xl border px-3 py-2 text-sm outline-none ${
+                            slideImageUrlErrors?.[index] ? "border-red-300 focus:border-red-500" : "border-slate-300 focus:border-emerald-700"
+                          }`}
+                          onChange={(event) => onSlideImageUrlChange(index, event.target.value)}
+                          placeholder="https://example.org/donation-slide.jpg"
+                          type="url"
+                          value={slideImage.imageUrl}
+                        />
+                        <label className={`inline-flex min-h-11 cursor-pointer items-center justify-center rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 ${slideImageUploadState.uploading ? "pointer-events-none opacity-60" : ""}`}>
+                          <input
+                            accept="image/jpeg,image/png,image/webp"
+                            className="sr-only"
+                            disabled={slideImageUploadState.uploading}
+                            onChange={(event) => {
+                              const file = event.currentTarget.files?.[0];
+                              if (file) {
+                                onSlideImageUpload(index, file);
+                              }
+                              event.currentTarget.value = "";
+                            }}
+                            type="file"
+                          />
+                          {slideImageUploadState.uploading ? "Uploading..." : "Upload image"}
+                        </label>
+                      </div>
+                    </div>
+                    {slideImageUrlErrors?.[index] ? <p className="mt-2 text-sm font-medium text-red-700">{slideImageUrlErrors[index]}</p> : null}
+                    {slideImageUploadState.error ? <p className="mt-2 text-sm font-medium text-red-700">{slideImageUploadState.error}</p> : null}
+                    <label className="mt-3 flex items-center gap-2">
+                      <input
+                        checked={slideImage.showQr}
+                        className="h-4 w-4 rounded border-slate-300 text-emerald-700"
+                        onChange={(event) => onSlideImageShowQrChange(index, event.target.checked)}
+                        type="checkbox"
+                      />
+                      <span className="text-sm font-semibold text-slate-700">Show QR on this slide</span>
+                    </label>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={index === 0}
+                        onClick={() => onMoveSlideImageUrl(index, -1)}
+                        type="button"
+                      >
+                        Up
+                      </button>
+                      <button
+                        className="min-h-9 rounded-lg border border-slate-300 bg-white px-3 text-xs font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                        disabled={index === slideImages.length - 1}
+                        onClick={() => onMoveSlideImageUrl(index, 1)}
+                        type="button"
+                      >
+                        Down
+                      </button>
+                      <button
+                        className="min-h-9 rounded-lg border border-red-200 bg-red-50 px-3 text-xs font-semibold text-red-700"
+                        onClick={() => onRemoveSlideImageUrl(index)}
+                        type="button"
+                      >
+                        Remove
+                      </button>
+                    </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
             <label className="flex items-center gap-2">
@@ -332,9 +537,9 @@ export function DonationDisplaySettingsSection({
           <div className="relative w-full overflow-hidden rounded-lg border border-emerald-900/10 bg-gradient-to-br from-[#fdfbf7] to-[#ece5d4] shadow-sm">
             {/* 16:9 aspect ratio wrapper */}
             <div className="relative pb-[56.25%]">
-              {isImageMode && backgroundImageUrl.trim().length > 0 ? (
+              {hasPreviewImage ? (
                 <div className="absolute inset-0">
-                  <img alt="" className="h-full w-full object-contain" src={backgroundImageUrl} />
+                  <img alt="" className="h-full w-full object-contain" src={previewImageUrl} />
                   {qrOverlayEnabled && showQrCode && qrUrl.trim().length > 0 && !qrUrlError && (
                     <div
                       className="absolute"
@@ -398,6 +603,29 @@ export function DonationDisplaySettingsSection({
               )}
             </div>
           </div>
+
+          {isImageMode && slideshowEnabled ? (
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <button
+                className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={slideshowPreviewImageUrls.length <= 1}
+                onClick={() => handlePreviewStep(-1)}
+                type="button"
+              >
+                Previous
+              </button>
+              <p className="text-sm font-semibold text-slate-700">Slide {previewSlideNumber} of {previewSlideCount}</p>
+              <span aria-hidden="true" className="sr-only">Slide 1 of {previewSlideCount}</span>
+              <button
+                className="min-h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                disabled={slideshowPreviewImageUrls.length <= 1}
+                onClick={() => handlePreviewStep(1)}
+                type="button"
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
 
           {/* Status badges */}
           <div className="mt-2 flex flex-wrap items-center gap-2">

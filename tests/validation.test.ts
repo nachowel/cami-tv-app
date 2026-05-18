@@ -7,6 +7,7 @@ import {
   validateDonationAmount,
   validateDonationDisplayQrUrl,
   validateDonationUrl,
+  validateSlideshowImageUrls,
   validatePrayerTime,
   validateTicker,
 } from "../src/utils/validation.ts";
@@ -166,4 +167,29 @@ test("validateDonationDisplayQrUrl accepts http and https URLs", () => {
   assert.deepEqual(http.errors, []);
   assert.equal(https.valid, true);
   assert.deepEqual(https.errors, []);
+});
+
+test("validateSlideshowImageUrls accepts empty slides when slideshow is disabled", () => {
+  const result = validateSlideshowImageUrls({
+    slideImages: [{ imageUrl: "", showQr: true }],
+    slideshowEnabled: false,
+  });
+
+  assert.equal(result.valid, true);
+  assert.deepEqual(result.errors, []);
+});
+
+test("validateSlideshowImageUrls rejects invalid slideshow image URLs", () => {
+  const result = validateSlideshowImageUrls({
+    slideImages: [
+      { imageUrl: "https://example.org/slide.jpg", showQr: true },
+      { imageUrl: "ftp://example.org/slide.png", showQr: true },
+      { imageUrl: "not-a-url", showQr: false },
+    ],
+    slideshowEnabled: true,
+  });
+
+  assert.equal(result.valid, false);
+  assert.equal(result.fieldErrors.slideImages?.[1], "Slide image URL must be a valid http/https image address.");
+  assert.equal(result.fieldErrors.slideImages?.[2], "Slide image URL must be a valid http/https image address.");
 });

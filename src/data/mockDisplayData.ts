@@ -14,6 +14,9 @@ export const mockDisplayData = {
     weekly_amount: 750,
     currency: "GBP",
     donation_url: "https://icmgbexley.org.uk/donate",
+    slideshowEnabled: false,
+    slideshowIntervalSeconds: 30,
+    slideImages: [],
     updated_at: "2026-05-01T18:00:00Z",
   },
   prayerTimes: {

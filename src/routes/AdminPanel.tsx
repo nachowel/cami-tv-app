@@ -3,7 +3,10 @@ import { AdminUsersSection } from "../components/admin/AdminUsersSection";
 import { AnnouncementsSection } from "../components/admin/AnnouncementsSection";
 import type { SectionStatus } from "../components/admin/AdminStatusNotice";
 import { DailyContentSection } from "../components/admin/DailyContentSection";
-import { DonationDisplaySettingsSection } from "../components/admin/DonationDisplaySettingsSection";
+import {
+  DonationDisplaySettingsSection,
+  type DonationImageUploadState,
+} from "../components/admin/DonationDisplaySettingsSection";
 import { DONATION_DISPLAY_PRESETS } from "../components/admin/donationDisplayPresets";
 import { DonationSettingsSection } from "../components/admin/DonationSettingsSection";
 import { FooterTickerSection } from "../components/admin/FooterTickerSection";
@@ -39,6 +42,7 @@ import type {
   DisplaySettings,
   DonationCurrent,
   DonationDisplayConfig,
+  DonationSlideImage,
   PrayerTimeSourceSettings,
   PrayerTimesCurrent,
   PrayerTimesForDay,
@@ -67,6 +71,10 @@ import {
 import { grantAdminClaim, removeAdminClaim } from "../services/adminClaimsService.ts";
 import { getAdminUserManagementAvailability } from "../services/adminClaimsService.ts";
 import {
+  getDonationSlideUploadErrorMessage,
+  uploadDonationSlideImage,
+} from "../services/donationSlideUploadService.ts";
+import {
   createManualPrayerTimesSaveValue,
 } from "../components/admin/prayerTimeAdminState.ts";
 import {
@@ -76,9 +84,14 @@ import {
   validateBackgroundImageUrl,
   validateDonationDisplayQrUrl,
   validateDonationUrl,
+  validateSlideshowImageUrls,
   validatePrayerTime,
   validateTicker,
 } from "../utils/validation.ts";
+import {
+  clampSlideshowIntervalSeconds,
+  normalizeSlideImages,
+} from "../utils/donationDisplaySlideshow.ts";
 import { createDefaultPrayerTimeSourceSettings } from "../utils/prayerTimeSourceSettings.ts";
 
 type SectionStatusKey =
@@ -109,6 +122,13 @@ type AdminSectionId =
   | "daily-content"
   | "footer-ticker"
   | "theme-mode";
+
+function createIdleDonationImageUploadState(): DonationImageUploadState {
+  return {
+    error: null,
+    uploading: false,
+  };
+}
 
 function getDisplayLanguageLabel(language: DisplaySettings["language"]) {
   return language === "tr" ? "Türkçe" : "İngilizce";
@@ -163,6 +183,9 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     qrOverlayYPercent: 67,
     qrOverlaySizePercent: 12,
     motionEnabled: true,
+    slideshowEnabled: false,
+    slideshowIntervalSeconds: 30,
+    slideImages: [],
   });
   const [donationDisplayDraft, setDonationDisplayDraft] = useState<{
     titleLine1: string;
@@ -181,6 +204,9 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     qrOverlayYPercent: number;
     qrOverlaySizePercent: number;
     motionEnabled: boolean;
+    slideshowEnabled: boolean;
+    slideshowIntervalSeconds: number;
+    slideImages: DonationSlideImage[];
   }>({
     titleLine1: "DONATE",
     titleLine2: "HERE TODAY",
@@ -198,7 +224,13 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     qrOverlayYPercent: 67,
     qrOverlaySizePercent: 12,
     motionEnabled: true,
+    slideshowEnabled: false,
+    slideshowIntervalSeconds: 30,
+    slideImages: [],
   });
+  const [backgroundImageUploadState, setBackgroundImageUploadState] =
+    useState<DonationImageUploadState>(() => createIdleDonationImageUploadState());
+  const [slideImageUploadStates, setSlideImageUploadStates] = useState<DonationImageUploadState[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>(mockDisplayData.announcements);
   const [announcementDraft, setAnnouncementDraft] = useState<AdminAnnouncementDraft>(
     createAnnouncementDraft(),
@@ -301,6 +333,14 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         displayMode: donationDisplayDraft.displayMode,
       }),
     [donationDisplayDraft.backgroundImageUrl, donationDisplayDraft.displayMode],
+  );
+  const donationDisplaySlideUrlValidation = useMemo(
+    () =>
+      validateSlideshowImageUrls({
+        slideImages: donationDisplayDraft.slideImages,
+        slideshowEnabled: donationDisplayDraft.slideshowEnabled,
+      }),
+    [donationDisplayDraft.slideImages, donationDisplayDraft.slideshowEnabled],
   );
   const donationErrors = showDonationErrors
     ? {
@@ -411,7 +451,11 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           qrOverlayYPercent: cfg.qrOverlayYPercent,
           qrOverlaySizePercent: cfg.qrOverlaySizePercent,
           motionEnabled: cfg.motionEnabled,
+          slideshowEnabled: cfg.slideshowEnabled,
+          slideshowIntervalSeconds: cfg.slideshowIntervalSeconds,
+          slideImages: cfg.slideImages,
         });
+        setSlideImageUploadStates(cfg.slideImages.map(() => createIdleDonationImageUploadState()));
       }
       setPrayerTimeSourceSettings(
         prayerTimeSourceSettingsResult.status === "fulfilled"
@@ -460,10 +504,15 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       return;
     }
 
+    const donationWithoutLegacySlides = { ...donation };
+    delete donationWithoutLegacySlides.slideImageUrls;
     const nextDonation: DonationCurrent = {
-      ...donation,
+      ...donationWithoutLegacySlides,
       donation_url: donationUrlDraft.trim(),
       weekly_amount: Number(donationAmountDraft),
+      slideshowEnabled: donationDisplayDraft.slideshowEnabled,
+      slideshowIntervalSeconds: clampSlideshowIntervalSeconds(donationDisplayDraft.slideshowIntervalSeconds),
+      slideImages: normalizeSlideImages(donationDisplayDraft.slideImages),
       updated_at: new Date().toISOString(),
     };
 
@@ -498,6 +547,55 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     }));
   }
 
+  function updateSlideImageUploadState(index: number, nextState: DonationImageUploadState) {
+    setSlideImageUploadStates((prev) => {
+      const next = [...prev];
+      while (next.length <= index) {
+        next.push(createIdleDonationImageUploadState());
+      }
+      next[index] = nextState;
+      return next;
+    });
+  }
+
+  async function handleDonationBackgroundImageUpload(file: File) {
+    setBackgroundImageUploadState({ error: null, uploading: true });
+
+    try {
+      const result = await uploadDonationSlideImage(file);
+      setDonationDisplayDraft((prev) => ({
+        ...prev,
+        backgroundImageUrl: result.secure_url,
+      }));
+      setBackgroundImageUploadState({ error: null, uploading: false });
+    } catch (error) {
+      setBackgroundImageUploadState({
+        error: getDonationSlideUploadErrorMessage(error),
+        uploading: false,
+      });
+    }
+  }
+
+  async function handleDonationSlideImageUpload(index: number, file: File) {
+    updateSlideImageUploadState(index, { error: null, uploading: true });
+
+    try {
+      const result = await uploadDonationSlideImage(file);
+      setDonationDisplayDraft((prev) => ({
+        ...prev,
+        slideImages: prev.slideImages.map((current, currentIndex) =>
+          currentIndex === index ? { ...current, imageUrl: result.secure_url } : current,
+        ),
+      }));
+      updateSlideImageUploadState(index, { error: null, uploading: false });
+    } catch (error) {
+      updateSlideImageUploadState(index, {
+        error: getDonationSlideUploadErrorMessage(error),
+        uploading: false,
+      });
+    }
+  }
+
   function handleDonationDisplayReset() {
     const confirmed = window.confirm("Reset donation display to default values?");
     if (!confirmed) return;
@@ -518,17 +616,23 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       qrOverlayYPercent: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlayYPercent,
       qrOverlaySizePercent: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlaySizePercent,
       motionEnabled: DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled,
+      slideshowEnabled: DEFAULT_DONATION_DISPLAY_CONFIG.slideshowEnabled,
+      slideshowIntervalSeconds: DEFAULT_DONATION_DISPLAY_CONFIG.slideshowIntervalSeconds,
+      slideImages: DEFAULT_DONATION_DISPLAY_CONFIG.slideImages,
     });
+    setBackgroundImageUploadState(createIdleDonationImageUploadState());
+    setSlideImageUploadStates(DEFAULT_DONATION_DISPLAY_CONFIG.slideImages.map(() => createIdleDonationImageUploadState()));
     setShowDonationDisplayErrors(false);
   }
 
   async function handleDonationDisplaySubmit() {
-    if (!donationDisplayQrUrlValidation.valid || !donationDisplayBackgroundImageUrlValidation.valid) {
+    if (!donationDisplayQrUrlValidation.valid || !donationDisplayBackgroundImageUrlValidation.valid || !donationDisplaySlideUrlValidation.valid) {
       setShowDonationDisplayErrors(true);
       updateSectionStatus("donationDisplay", null);
       return;
     }
 
+    const slideImages = normalizeSlideImages(donationDisplayDraft.slideImages);
     const nextConfig: DonationDisplayConfig = {
       ...donationDisplayConfig,
       titleLine1: donationDisplayDraft.titleLine1.trim(),
@@ -547,6 +651,18 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       qrOverlayYPercent: donationDisplayDraft.qrOverlayYPercent,
       qrOverlaySizePercent: donationDisplayDraft.qrOverlaySizePercent,
       motionEnabled: donationDisplayDraft.motionEnabled,
+      slideshowEnabled: donationDisplayDraft.slideshowEnabled,
+      slideshowIntervalSeconds: clampSlideshowIntervalSeconds(donationDisplayDraft.slideshowIntervalSeconds),
+      slideImages,
+    };
+    const donationDisplayWithoutLegacySlides = { ...donation };
+    delete donationDisplayWithoutLegacySlides.slideImageUrls;
+    const nextDonation: DonationCurrent = {
+      ...donationDisplayWithoutLegacySlides,
+      slideshowEnabled: nextConfig.slideshowEnabled,
+      slideshowIntervalSeconds: nextConfig.slideshowIntervalSeconds,
+      slideImages: nextConfig.slideImages,
+      updated_at: new Date().toISOString(),
     };
 
     updateSectionStatus("donationDisplay", createSavingStatus("Kaydediliyor..."));
@@ -554,7 +670,12 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     const result = await commitAdminSectionSave({
       isAuthenticated,
       nextValue: nextConfig,
-      persist: saveDonationDisplayConfig,
+      persist: async (config) => {
+        await Promise.all([
+          saveDonationDisplayConfig(config),
+          saveDonationCurrent(nextDonation),
+        ]);
+      },
       successMessage: "Kaydedildi.",
     });
 
@@ -577,7 +698,11 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         qrOverlayYPercent: result.valueToApply.qrOverlayYPercent,
         qrOverlaySizePercent: result.valueToApply.qrOverlaySizePercent,
         motionEnabled: result.valueToApply.motionEnabled,
+        slideshowEnabled: result.valueToApply.slideshowEnabled,
+        slideshowIntervalSeconds: result.valueToApply.slideshowIntervalSeconds,
+        slideImages: result.valueToApply.slideImages,
       });
+      setDonation(nextDonation);
       setShowDonationDisplayErrors(false);
     }
 
@@ -967,6 +1092,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           <DonationDisplaySettingsSection
             backgroundImageUrl={donationDisplayDraft.backgroundImageUrl}
             backgroundImageUrlError={showDonationDisplayErrors ? donationDisplayBackgroundImageUrlValidation.fieldErrors.backgroundImageUrl : undefined}
+            backgroundImageUploadState={backgroundImageUploadState}
             ctaText={donationDisplayDraft.ctaText}
             displayMode={donationDisplayDraft.displayMode}
             id="donation-display"
@@ -974,21 +1100,66 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             mainMessage={donationDisplayDraft.mainMessage}
             mobileOpen={activeMobileSection === "donation-display"}
             motionEnabled={donationDisplayDraft.motionEnabled}
+            slideImageUrlErrors={showDonationDisplayErrors ? donationDisplaySlideUrlValidation.fieldErrors.slideImages : undefined}
+            slideImages={donationDisplayDraft.slideImages}
+            slideImageUploadStates={slideImageUploadStates}
+            slideshowEnabled={donationDisplayDraft.slideshowEnabled}
+            slideshowIntervalSeconds={donationDisplayDraft.slideshowIntervalSeconds}
+            onAddSlideImageUrl={() => {
+              setDonationDisplayDraft((prev) => ({ ...prev, slideImages: [...prev.slideImages, { imageUrl: "", showQr: true }] }));
+              setSlideImageUploadStates((prev) => [...prev, createIdleDonationImageUploadState()]);
+            }}
+            onBackgroundImageUpload={handleDonationBackgroundImageUpload}
             onBackgroundImageUrlChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, backgroundImageUrl: value }))}
             onCtaTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, ctaText: value }))}
             onDisplayModeChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, displayMode: value }))}
             onImpactTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, impactText: value }))}
             onMainMessageChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, mainMessage: value }))}
             onMobileToggle={() => setActiveMobileSection("donation-display")}
+            onMoveSlideImageUrl={(index, direction) => {
+              setDonationDisplayDraft((prev) => {
+                const next = [...prev.slideImages];
+                const targetIndex = index + direction;
+                if (targetIndex < 0 || targetIndex >= next.length) {
+                  return prev;
+                }
+                [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+                return { ...prev, slideImages: next };
+              });
+              setSlideImageUploadStates((prev) => {
+                const next = [...prev];
+                const targetIndex = index + direction;
+                if (targetIndex < 0 || targetIndex >= next.length) {
+                  return prev;
+                }
+                [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+                return next;
+              });
+            }}
             onMotionEnabledChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, motionEnabled: value }))}
             onQrOverlayEnabledChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlayEnabled: value }))}
             onQrOverlaySizePercentChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlaySizePercent: value }))}
             onQrOverlayXPercentChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlayXPercent: value }))}
             onQrOverlayYPercentChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrOverlayYPercent: value }))}
             onQrUrlChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, qrUrl: value }))}
+            onRemoveSlideImageUrl={(index) => {
+              setDonationDisplayDraft((prev) => ({ ...prev, slideImages: prev.slideImages.filter((_, currentIndex) => currentIndex !== index) }));
+              setSlideImageUploadStates((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+            }}
             onReset={handleDonationDisplayReset}
+            onSlideImageUpload={handleDonationSlideImageUpload}
+            onSlideImageUrlChange={(index, value) => setDonationDisplayDraft((prev) => ({
+              ...prev,
+              slideImages: prev.slideImages.map((current, currentIndex) => currentIndex === index ? { ...current, imageUrl: value } : current),
+            }))}
+            onSlideImageShowQrChange={(index, value) => setDonationDisplayDraft((prev) => ({
+              ...prev,
+              slideImages: prev.slideImages.map((current, currentIndex) => currentIndex === index ? { ...current, showQr: value } : current),
+            }))}
             onShowImpactTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, showImpactText: value }))}
             onShowQrCodeChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, showQrCode: value }))}
+            onSlideshowEnabledChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, slideshowEnabled: value }))}
+            onSlideshowIntervalSecondsChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, slideshowIntervalSeconds: value }))}
             onPresetSelect={handleDonationDisplayPresetSelect}
             onSubmit={handleDonationDisplaySubmit}
             onSubtitleChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, subtitle: value }))}

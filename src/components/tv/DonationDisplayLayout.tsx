@@ -1,8 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { QRCodeSVG } from "qrcode.react";
 import type { DonationDisplayConfig } from "../../types/display";
 import { useTvViewportLayout } from "./tvViewportLayout";
 import { resolveDonationTitleLines } from "../../utils/donationDisplayFallback";
+import {
+  clampSlideshowIntervalSeconds,
+  resolveDonationSlideshowImages,
+  shouldShowQrForDonationSlide,
+} from "../../utils/donationDisplaySlideshow";
 
 interface DonationDisplayLayoutProps {
   config: DonationDisplayConfig;
@@ -38,17 +43,70 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
     qrOverlayYPercent: 67,
     qrOverlaySizePercent: 12,
     motionEnabled: true,
+    slideshowEnabled: false,
+    slideshowIntervalSeconds: 30,
+    slideImages: [],
   };
 
   const stageHeight = viewportLayout?.stageHeight ?? 1080;
   const stageWidth = viewportLayout?.stageWidth ?? 1920;
-  const hasQrUrl = safeConfig.showQrCode !== false && typeof safeConfig.qrUrl === "string" && safeConfig.qrUrl.trim().length > 0;
+  const hasQrUrl = typeof safeConfig.qrUrl === "string" && safeConfig.qrUrl.trim().length > 0;
+  const showComponentQr = safeConfig.showQrCode !== false && hasQrUrl;
   const hasBackgroundImage = typeof safeConfig.backgroundImageUrl === "string" && safeConfig.backgroundImageUrl.length > 0;
   const motion = safeConfig.motionEnabled !== false;
+  const slideshowEnabled = safeConfig.slideshowEnabled === true;
+  const slideshowIntervalSeconds = clampSlideshowIntervalSeconds(safeConfig.slideshowIntervalSeconds);
+  const slideshowImages = useMemo(
+    () =>
+      resolveDonationSlideshowImages({
+        backgroundImageUrl: safeConfig.backgroundImageUrl,
+        backgroundShowQr: safeConfig.showQrCode !== false,
+        slideImages: safeConfig.slideImages,
+        slideImageUrls: safeConfig.slideImageUrls,
+      }),
+    [safeConfig.backgroundImageUrl, safeConfig.showQrCode, safeConfig.slideImages, safeConfig.slideImageUrls],
+  );
 
   // ── Countdown state for QR ──
   const [countdown, setCountdown] = useState(10);
   const [qrFading, setQrFading] = useState(false);
+  const [imageLoadFailed, setImageLoadFailed] = useState(false);
+  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
+  const [failedSlideUrls, setFailedSlideUrls] = useState<string[]>([]);
+  const availableSlideshowImages = useMemo(
+    () => slideshowImages.filter((slide) => !failedSlideUrls.includes(slide.imageUrl)),
+    [failedSlideUrls, slideshowImages],
+  );
+  const activeSlideshowSlide =
+    availableSlideshowImages.length > 0
+      ? availableSlideshowImages[activeSlideIndex % availableSlideshowImages.length]
+      : null;
+  const activeImageUrl = slideshowEnabled ? activeSlideshowSlide?.imageUrl ?? "" : safeConfig.backgroundImageUrl;
+  const showImageModeQr = slideshowEnabled
+    ? safeConfig.qrOverlayEnabled && hasQrUrl && shouldShowQrForDonationSlide(activeSlideshowSlide)
+    : safeConfig.qrOverlayEnabled && safeConfig.showQrCode !== false && hasQrUrl;
+
+  function markSlideFailed(url: string) {
+    setFailedSlideUrls((current) => current.includes(url) ? current : [...current, url]);
+  }
+
+  function preloadImage(url: string) {
+    if (!url) {
+      return () => {};
+    }
+
+    const image = new Image();
+    image.onload = () => {};
+    image.onerror = () => {
+      markSlideFailed(url);
+    };
+    image.src = url;
+
+    return () => {
+      image.onerror = null;
+      image.onload = null;
+    };
+  }
 
   useEffect(() => {
     if (!motion) return;
@@ -71,6 +129,38 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
       if (timeoutId) clearTimeout(timeoutId);
     };
   }, [motion]);
+
+  useEffect(() => {
+    if (!slideshowEnabled) {
+      setActiveSlideIndex(0);
+      return;
+    }
+
+    setActiveSlideIndex((current) =>
+      availableSlideshowImages.length > 0 ? current % availableSlideshowImages.length : 0,
+    );
+  }, [availableSlideshowImages.length, slideshowEnabled]);
+
+  useEffect(() => {
+    if (!slideshowEnabled || availableSlideshowImages.length <= 1) {
+      return;
+    }
+
+    let cleanupPreload = preloadImage(availableSlideshowImages[(activeSlideIndex + 1) % availableSlideshowImages.length]?.imageUrl ?? "");
+
+    const timer = setInterval(() => {
+      setActiveSlideIndex((current) => {
+        const nextIndex = (current + 1) % availableSlideshowImages.length;
+        return nextIndex;
+      });
+    }, slideshowIntervalSeconds * 1000);
+
+    return () => {
+      cleanupPreload();
+      cleanupPreload = () => {};
+      clearInterval(timer);
+    };
+  }, [activeSlideIndex, availableSlideshowImages, slideshowEnabled, slideshowIntervalSeconds]);
 
   // Use new config fields with safe legacy fallbacks
   const { titleLine1, titleLine2 } = resolveDonationTitleLines(safeConfig);
@@ -102,8 +192,12 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
   }
 
   // ── Image mode ──
-  const [imageLoadFailed, setImageLoadFailed] = useState(false);
-  const isImageMode = safeConfig.displayMode === "image" && hasBackgroundImage && !imageLoadFailed;
+  const legacyImageMode = safeConfig.displayMode === "image" && hasBackgroundImage && !imageLoadFailed;
+  const isImageMode = safeConfig.displayMode === "image" && (
+    slideshowEnabled
+      ? availableSlideshowImages.length > 0
+      : legacyImageMode
+  );
 
   if (isImageMode) {
     const qrSize = stageWidth * (clamp(safeConfig.qrOverlaySizePercent, 5, 30) / 100);
@@ -122,16 +216,42 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
             width: `${stageWidth}px`,
           }}
         >
-          <img
-            alt=""
-            className="absolute inset-0 h-full w-full object-contain"
-            onError={() => {
-              console.warn("[donation] Background image failed to load; falling back to component mode.");
-              setImageLoadFailed(true);
-            }}
-            src={safeConfig.backgroundImageUrl}
-          />
-          {safeConfig.qrOverlayEnabled && hasQrUrl && (
+          <style>{`
+            @keyframes donationSlideFade {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
+          `}</style>
+          {slideshowEnabled ? (
+            <img
+              alt=""
+              className="absolute inset-0 h-full w-full object-contain"
+              key={activeImageUrl}
+              onError={() => {
+                if (activeImageUrl) {
+                  console.warn("[donation] Slideshow image failed to load; skipping slide.");
+                  markSlideFailed(activeImageUrl);
+                }
+              }}
+              src={activeImageUrl}
+              style={{
+                animation: motion ? "donationSlideFade 700ms ease-in-out" : undefined,
+                opacity: 1,
+                transition: motion ? "opacity 700ms ease-in-out" : undefined,
+              }}
+            />
+          ) : (
+            <img
+              alt=""
+              className="absolute inset-0 h-full w-full object-contain"
+              onError={() => {
+                console.warn("[donation] Background image failed to load; falling back to component mode.");
+                setImageLoadFailed(true);
+              }}
+              src={safeConfig.backgroundImageUrl}
+            />
+          )}
+          {showImageModeQr && (
             <div
               className="absolute"
               style={{
@@ -298,7 +418,7 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
             </div>
 
             {/* RIGHT: QR Block */}
-            {hasQrUrl && (
+            {showComponentQr && (
               <div className="relative flex flex-col items-center gap-2">
                 {/* Optional Top Label */}
                 <div className="mb-1 flex items-center gap-2">
