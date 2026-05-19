@@ -1,0 +1,32 @@
+name: Awqat Salah Login Diagnostics
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  awqat-salah-login-diagnostics:
+    runs-on: ubuntu-latest
+    env:
+      AWQAT_SALAH_USERNAME: ${{ secrets.AWQAT_SALAH_USERNAME }}
+      AWQAT_SALAH_PASSWORD: ${{ secrets.AWQAT_SALAH_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build project
+        run: npm run build
+
+      - name: Run Awqat Salah login diagnostics
+        run: npm run diagnose:awqat-login
