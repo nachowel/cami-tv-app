@@ -46,7 +46,7 @@ test("validation blocks invalid background image URL", () => {
 });
 
 test("admin section has display mode selector", () => {
-  assert.ok(adminSectionSource.includes("Display Mode"), "expected display mode label");
+  assert.ok(adminSectionSource.includes("Display content type"), "expected display content type label");
   assert.ok(adminSectionSource.includes('type="radio"'), "expected radio inputs");
   assert.ok(adminSectionSource.includes('onDisplayModeChange'), "expected display mode handler");
 });
@@ -102,15 +102,16 @@ test("slideshow enabled rotates images on the configured interval", () => {
 
 test("admin has slideshow controls and preview navigation", () => {
   assert.ok(adminSectionSource.includes("Enable slideshow"), "expected slideshow checkbox");
-  assert.ok(adminSectionSource.includes("Default slide duration seconds"), "expected default slide duration input");
-  assert.ok(adminSectionSource.includes("Main slide duration seconds"), "expected main slide duration input");
+  assert.ok(adminSectionSource.includes("Slide 1 — Main background"), "expected main slide label");
+  assert.ok(adminSectionSource.includes("Slide ${index + 2}"), "expected extra slide template");
   assert.ok(adminSectionSource.includes("Slide 1 of"), "expected slide count preview text");
   assert.ok(adminSectionSource.includes("Previous"), "expected previous preview button");
   assert.ok(adminSectionSource.includes("Next"), "expected next preview button");
-  assert.ok(adminSectionSource.includes("Add image URL"), "expected add slide button");
+  assert.ok(adminSectionSource.includes("Add image"), "expected add slide button");
   assert.ok(adminSectionSource.includes("Remove"), "expected remove slide button");
-  assert.ok(adminSectionSource.includes("Show QR on this slide"), "expected per-slide QR checkbox");
+  assert.ok(adminSectionSource.includes("Show QR"), "expected per-slide QR checkbox");
   assert.ok(adminSectionSource.includes("Duration (seconds)"), "expected per-slide duration input");
+  assert.ok(adminSectionSource.includes("Advanced: fallback duration"), "expected advanced fallback section");
 });
 
 test("slideshow skips failed images and preloads next image", () => {
@@ -143,13 +144,14 @@ test("motion disabled removes slideshow transition animation", () => {
 
 test("admin has slideshow controls and preview navigation", () => {
   assert.ok(adminSectionSource.includes("Enable slideshow"), "expected slideshow checkbox");
-  assert.ok(adminSectionSource.includes("Default slide duration seconds"), "expected default slide duration input");
-  assert.ok(adminSectionSource.includes("Main slide duration seconds"), "expected main slide duration input");
+  assert.ok(adminSectionSource.includes("Slide 1 — Main background"), "expected main slide label");
+  assert.ok(adminSectionSource.includes("Slide ${index + 2}"), "expected extra slide template");
   assert.ok(adminSectionSource.includes("Slide 1 of"), "expected slide count preview text");
   assert.ok(adminSectionSource.includes("Previous"), "expected previous preview button");
   assert.ok(adminSectionSource.includes("Next"), "expected next preview button");
-  assert.ok(adminSectionSource.includes("Add image URL"), "expected add slide button");
+  assert.ok(adminSectionSource.includes("Add image"), "expected add slide button");
   assert.ok(adminSectionSource.includes("Remove"), "expected remove slide button");
-  assert.ok(adminSectionSource.includes("Show QR on this slide"), "expected per-slide QR checkbox");
+  assert.ok(adminSectionSource.includes("Show QR"), "expected per-slide QR checkbox");
   assert.ok(adminSectionSource.includes("Duration (seconds)"), "expected per-slide duration input");
+  assert.ok(adminSectionSource.includes("Advanced: fallback duration"), "expected advanced fallback section");
 });

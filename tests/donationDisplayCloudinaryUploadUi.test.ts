@@ -49,7 +49,7 @@ test("admin save and load use slideImages with per-slide QR settings", () => {
   assert.ok(adminPanelSource.includes("slideImages = normalizeSlideImages"), "expected normalization before save");
   assert.ok(adminPanelSource.includes("slideImages: nextConfig.slideImages"), "expected donation/current save shape");
   assert.ok(adminSectionSource.includes("onSlideImageShowQrChange"), "expected per-slide QR change callback");
-  assert.ok(adminSectionSource.includes("Show QR on this slide"), "expected per-slide QR checkbox");
+  assert.ok(adminSectionSource.includes("Show QR"), "expected per-slide QR checkbox");
 });
 
 test("admin save path preserves extra slideImages instead of saving an empty row list", () => {
