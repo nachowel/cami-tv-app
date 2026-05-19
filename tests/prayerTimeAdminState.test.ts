@@ -6,6 +6,7 @@ import {
   createManualPrayerTimesSaveValue,
   disableManualPrayerTimesOverride,
   getPrayerTimesAdminModeState,
+  getPrayerTimesAdminSourceSummary,
   shouldShowAutomaticPrayerTimesRestoreAction,
 } from "../src/components/admin/prayerTimeAdminState.ts";
 
@@ -22,14 +23,14 @@ test("automatic mode does not show the restore action", () => {
   assert.equal(result, false);
 });
 
-test("manual mode shows the restore action", () => {
+test("manual mode without automatic Awqat data does not show the restore action", () => {
   const result = shouldShowAutomaticPrayerTimesRestoreAction({
     ...mockDisplayData.prayerTimes,
     manualOverride: true,
     effectiveSource: "manual",
   });
 
-  assert.equal(result, true);
+  assert.equal(result, false);
 });
 
 test("automatic pending mode stays visible as waiting when effectiveSource is still manual", () => {
@@ -67,6 +68,100 @@ test("awqat automatic mode shows Awqat Salah as the active source", () => {
 
   assert.equal(result.label, "Otomatik: Awqat Salah");
   assert.ok(result.description.includes("Awqat Salah"));
+});
+
+test("awqat source with fresh updatedAt shows active sync instead of not implemented copy", () => {
+  const result = getPrayerTimesAdminSourceSummary(
+    {
+      source: "awqat-salah",
+      updatedAt: "2026-07-05T00:30:00.000Z",
+    },
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "awqat-salah",
+      providerSource: "awqat-salah",
+      updatedAt: "2026-07-05T01:00:00.000Z",
+      updated_at: "2026-07-05T01:00:00.000Z",
+    },
+    new Date("2026-07-05T02:00:00.000Z"),
+  );
+
+  assert.equal(result.statusMessage, "Awqat Salah API sync active.");
+  assert.equal(result.displayedPrayerTimesLabel, "Awqat Salah API");
+  assert.doesNotMatch(result.statusMessage ?? "", /not implemented/i);
+});
+
+test("manualOverride true shows a manual warning only when displayed times are manual", () => {
+  const result = getPrayerTimesAdminSourceSummary(
+    {
+      source: "awqat-salah",
+      updatedAt: "2026-07-05T00:30:00.000Z",
+    },
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: true,
+      effectiveSource: "manual",
+      providerSource: "awqat-salah",
+      automaticTimes: {
+        date: "2026-07-05",
+        today: {
+          fajr: "03:28",
+          sunrise: "05:20",
+          dhuhr: "13:02",
+          asr: "17:10",
+          maghrib: "20:34",
+          isha: "22:15",
+        },
+        tomorrow: null,
+      },
+    },
+    new Date("2026-07-05T02:00:00.000Z"),
+  );
+
+  assert.match(result.manualOverrideWarning ?? "", /Manual override is active/);
+  assert.equal(result.displayedPrayerTimesLabel, "Manual Entry");
+  assert.equal(result.restoreAutomaticActionLabel, "Switch display back to automatic Awqat times");
+});
+
+test("manualOverride flag alone does not label automatic Awqat display as manual", () => {
+  const result = getPrayerTimesAdminSourceSummary(
+    {
+      source: "awqat-salah",
+      updatedAt: "2026-07-05T00:30:00.000Z",
+    },
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: true,
+      effectiveSource: "awqat-salah",
+      providerSource: "awqat-salah",
+      updatedAt: "2026-07-05T01:00:00.000Z",
+      updated_at: "2026-07-05T01:00:00.000Z",
+    },
+    new Date("2026-07-05T02:00:00.000Z"),
+  );
+
+  assert.equal(result.manualOverrideWarning, null);
+  assert.equal(result.displayedPrayerTimesLabel, "Awqat Salah API");
+});
+
+test("configured Awqat with effective Aladhan shows fallback warning", () => {
+  const result = getPrayerTimesAdminSourceSummary(
+    {
+      source: "awqat-salah",
+      updatedAt: "2026-07-05T00:30:00.000Z",
+    },
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "aladhan",
+      providerSource: "aladhan",
+    },
+    new Date("2026-07-05T02:00:00.000Z"),
+  );
+
+  assert.match(result.statusMessage ?? "", /Aladhan fallback/i);
+  assert.equal(result.displayedPrayerTimesLabel, "Aladhan API");
 });
 
 test("createManualPrayerTimesSaveValue updates effective prayer times and preserves automaticTimes", () => {

@@ -6,7 +6,10 @@ import type {
 } from "../../types/display";
 import { AdminStatusNotice, type SectionStatus } from "./AdminStatusNotice";
 import { AdminSectionCard } from "./AdminSectionCard";
-import { getPrayerTimesAdminModeState } from "./prayerTimeAdminState.ts";
+import {
+  getPrayerTimesAdminModeState,
+  getPrayerTimesAdminSourceSummary,
+} from "./prayerTimeAdminState.ts";
 
 interface PrayerTimesSectionProps {
   errors: Partial<Record<keyof PrayerTimesForDay, string>>;
@@ -19,6 +22,7 @@ interface PrayerTimesSectionProps {
   prayerTimes: PrayerTimesForDay;
   status: SectionStatus | null;
   onChange: (nextPrayerTimes: PrayerTimesForDay) => void;
+  onSwitchToAutomatic: () => void;
   onSubmit: () => void;
 }
 
@@ -31,27 +35,10 @@ const prayerInputs: Array<{ key: keyof PrayerTimesForDay; label: string }> = [
   { key: "isha", label: "Isha / Yatsı" },
 ];
 
-const prayerTimeSourceOptions: Array<{ label: string; value: PrayerTimeSourceSetting }> = [
-  { label: "Manual Entry", value: "manual" },
-  { label: "Aladhan API", value: "aladhan" },
-  { label: "Awqat Salah API", value: "awqat-salah" },
-];
 const primaryPrayerTimeSourceOptions: Array<{ label: string; value: PrayerTimeSourceSetting }> = [
   { label: "Use Manual Entry", value: "manual" },
   { label: "Use Awqat Salah API", value: "awqat-salah" },
 ];
-
-function getPrayerTimeSourceLabel(source: PrayerTimeSourceSetting) {
-  return prayerTimeSourceOptions.find((option) => option.value === source)?.label ?? source;
-}
-
-function getDisplayedPrayerTimesLabel(current: PrayerTimesCurrent) {
-  if (current.manualOverride || current.effectiveSource === "manual") {
-    return "Manual Entry";
-  }
-
-  return getPrayerTimeSourceLabel(current.effectiveSource);
-}
 
 export function PrayerTimesSection({
   errors,
@@ -64,17 +51,26 @@ export function PrayerTimesSection({
   prayerTimes,
   status,
   onChange,
+  onSwitchToAutomatic,
   onSubmit,
 }: PrayerTimesSectionProps) {
   const modeState = getPrayerTimesAdminModeState(prayerTimesCurrent);
+  const sourceSummary = getPrayerTimesAdminSourceSummary(
+    prayerTimeSourceSettings,
+    prayerTimesCurrent,
+  );
+  const sourceStatusClass =
+    sourceSummary.statusTone === "success"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+      : sourceSummary.statusTone === "warning"
+        ? "border-amber-200 bg-amber-50 text-amber-800"
+        : "border-sky-200 bg-sky-50 text-sky-800";
   const lastUpdatedLabel = prayerTimeSourceSettings.updatedAt
     ? new Intl.DateTimeFormat("en-GB", {
         dateStyle: "medium",
         timeStyle: "short",
       }).format(new Date(prayerTimeSourceSettings.updatedAt))
     : "Not set yet";
-  const currentSourceLabel = getPrayerTimeSourceLabel(prayerTimeSourceSettings.source);
-  const displayedPrayerTimesLabel = getDisplayedPrayerTimesLabel(prayerTimesCurrent);
 
   return (
     <AdminSectionCard
@@ -88,10 +84,13 @@ export function PrayerTimesSection({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-sm font-semibold text-slate-900">
-              Current source: {currentSourceLabel}
+              Configured source: {sourceSummary.configuredSourceLabel}
             </p>
             <p className="mt-1 text-xs text-slate-500">
-              Last updated: {lastUpdatedLabel}
+              Source setting updated: {lastUpdatedLabel}
+            </p>
+            <p className="mt-1 text-xs text-slate-500">
+              Effective display: {sourceSummary.effectiveSourceLabel}
             </p>
             {prayerTimeSourceSettings.cityName ? (
               <p className="mt-1 text-xs text-slate-500">
@@ -126,21 +125,9 @@ export function PrayerTimesSection({
           Saving manual prayer times updates prayerTimes/current only. It does not change this source setting.
         </p>
 
-        {prayerTimeSourceSettings.source === "aladhan" ? (
-          <p className="mt-3 text-sm text-amber-700">
-            Aladhan API remains supported internally, but the main admin source options are Manual Entry and Awqat Salah API.
-          </p>
-        ) : null}
-
-        {prayerTimeSourceSettings.source === "manual" ? (
-          <p className="mt-3 text-sm text-amber-700">
-            Automatic sync is disabled while Manual Entry is selected.
-          </p>
-        ) : null}
-
-        {prayerTimeSourceSettings.source === "awqat-salah" ? (
-          <p className="mt-3 text-sm text-amber-700">
-            Awqat Salah API sync is not implemented yet. This only saves the source setting for now.
+        {sourceSummary.statusMessage ? (
+          <p className={`mt-3 rounded-lg border px-3 py-2 text-sm font-medium ${sourceStatusClass}`}>
+            {sourceSummary.statusMessage}
           </p>
         ) : null}
       </div>
@@ -149,12 +136,21 @@ export function PrayerTimesSection({
         <p className="text-sm font-semibold text-slate-900">Geçerli mod: {modeState.label}</p>
         <p className="mt-1 text-sm text-slate-600">{modeState.description}</p>
         <p className="mt-2 text-xs font-medium text-slate-500">
-          Kaynak ayarı: {currentSourceLabel} | Gösterilen vakitler: {displayedPrayerTimesLabel}
+          Kaynak ayarı: {sourceSummary.configuredSourceLabel} | Gösterilen vakitler: {sourceSummary.displayedPrayerTimesLabel}
         </p>
-        {prayerTimesCurrent.manualOverride && prayerTimeSourceSettings.source === "awqat-salah" ? (
-          <p className="mt-2 text-xs text-slate-500">
-            Awqat Salah API moduna geç seçildi. Kaydedilen manuel vakitler ekranda kalır; sonraki uygun otomatik güncelleme bu kaynağı kullanır.
+        {sourceSummary.manualOverrideWarning ? (
+          <p className="mt-2 text-xs font-medium text-amber-700">
+            {sourceSummary.manualOverrideWarning}
           </p>
+        ) : null}
+        {sourceSummary.restoreAutomaticActionLabel ? (
+          <button
+            className="mt-3 min-h-10 w-full rounded-lg border border-emerald-700 bg-white px-3 py-2 text-sm font-semibold text-emerald-800 transition hover:bg-emerald-50 sm:w-auto"
+            onClick={onSwitchToAutomatic}
+            type="button"
+          >
+            {sourceSummary.restoreAutomaticActionLabel}
+          </button>
         ) : null}
       </div>
 

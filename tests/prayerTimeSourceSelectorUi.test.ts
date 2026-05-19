@@ -8,7 +8,7 @@ const prayerTimesSectionSource = readFileSync(
 );
 
 test("prayer time source UI shows clear Manual Entry and Awqat Salah actions", () => {
-  assert.match(prayerTimesSectionSource, /Current source:\s*\{currentSourceLabel\}/);
+  assert.match(prayerTimesSectionSource, /Configured source:\s*\{sourceSummary\.configuredSourceLabel\}/);
   assert.match(prayerTimesSectionSource, /label:\s*"Use Manual Entry", value:\s*"manual"/);
   assert.match(prayerTimesSectionSource, /label:\s*"Use Awqat Salah API", value:\s*"awqat-salah"/);
   assert.match(
@@ -23,5 +23,9 @@ test("prayer time source UI shows clear Manual Entry and Awqat Salah actions", (
     prayerTimesSectionSource,
     /Saving manual prayer times updates prayerTimes\/current only\. It does not change this source setting\./,
   );
+  assert.doesNotMatch(prayerTimesSectionSource, /Awqat Salah API sync is not implemented yet/);
+  assert.match(prayerTimesSectionSource, /Configured source:/);
+  assert.match(prayerTimesSectionSource, /Effective display:/);
+  assert.match(prayerTimesSectionSource, /sourceSummary\.restoreAutomaticActionLabel/);
   assert.doesNotMatch(prayerTimesSectionSource, /Otomatik Aladhan moduna dön/);
 });

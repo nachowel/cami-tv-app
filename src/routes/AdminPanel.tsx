@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { AdminUsersSection } from "../components/admin/AdminUsersSection";
 import { AnnouncementsSection } from "../components/admin/AnnouncementsSection";
 import type { SectionStatus } from "../components/admin/AdminStatusNotice";
@@ -76,6 +76,7 @@ import {
 } from "../services/donationSlideUploadService.ts";
 import {
   createManualPrayerTimesSaveValue,
+  disableManualPrayerTimesOverride,
 } from "../components/admin/prayerTimeAdminState.ts";
 import {
   validateAnnouncement,
@@ -123,6 +124,22 @@ type AdminSectionId =
   | "footer-ticker"
   | "theme-mode";
 
+type AdminBottomNavIcon = "home" | "content" | "prayer" | "slides" | "settings";
+
+interface AdminBottomNavItem {
+  icon: AdminBottomNavIcon;
+  label: string;
+  targetSection: AdminSectionId;
+}
+
+const adminBottomNavItems: AdminBottomNavItem[] = [
+  { icon: "home", label: "Home", targetSection: "announcements" },
+  { icon: "content", label: "Content", targetSection: "daily-content" },
+  { icon: "prayer", label: "Prayer", targetSection: "prayer-times" },
+  { icon: "slides", label: "Slides", targetSection: "donation-display" },
+  { icon: "settings", label: "Settings", targetSection: "language-settings" },
+];
+
 function createIdleDonationImageUploadState(): DonationImageUploadState {
   return {
     error: null,
@@ -148,6 +165,92 @@ function getThemeModeLabel(themeMode: DisplaySettings["theme_mode"]) {
 
 function getDailyContentTypeLabel(type: DailyContentCurrent["type"]) {
   return type === "hadith" ? "Hadis" : "Ayet";
+}
+
+function getAdminPageTitle(section: AdminSectionId) {
+  switch (section) {
+    case "admin-users":
+      return "Admin Users";
+    case "language-settings":
+      return "Settings";
+    case "donation-settings":
+      return "Donations";
+    case "donation-display":
+      return "Slides";
+    case "announcements":
+      return "Home";
+    case "prayer-times":
+      return "Prayer";
+    case "daily-content":
+      return "Content";
+    case "footer-ticker":
+      return "Ticker";
+    case "theme-mode":
+      return "Theme";
+  }
+}
+
+function AdminTabIcon({ icon }: { icon: AdminBottomNavIcon }) {
+  const iconPaths: Record<AdminBottomNavIcon, ReactNode> = {
+    home: (
+      <>
+        <path d="M3.5 10.8 12 4l8.5 6.8" />
+        <path d="M5.5 9.8V20h13V9.8" />
+        <path d="M9.5 20v-6h5v6" />
+      </>
+    ),
+    content: (
+      <>
+        <path d="M5 5.5h14" />
+        <path d="M5 11.5h14" />
+        <path d="M5 17.5h9" />
+      </>
+    ),
+    prayer: (
+      <>
+        <path d="M12 3.5v17" />
+        <path d="M7 8.5c1.2-2 2.9-3 5-3s3.8 1 5 3" />
+        <path d="M7.5 14.5h9" />
+        <path d="M9 20.5h6" />
+      </>
+    ),
+    slides: (
+      <>
+        <rect height="11" rx="2" width="14" x="5" y="5" />
+        <path d="M8 19h8" />
+        <path d="M10 16v3" />
+        <path d="M14 16v3" />
+      </>
+    ),
+    settings: (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 3.5v2.2" />
+        <path d="M12 18.3v2.2" />
+        <path d="m5.6 5.6 1.6 1.6" />
+        <path d="m16.8 16.8 1.6 1.6" />
+        <path d="M3.5 12h2.2" />
+        <path d="M18.3 12h2.2" />
+        <path d="m5.6 18.4 1.6-1.6" />
+        <path d="m16.8 7.2 1.6-1.6" />
+      </>
+    ),
+  };
+
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="1.8"
+      viewBox="0 0 24 24"
+    >
+      {iconPaths[icon]}
+    </svg>
+  );
 }
 
 function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPanelContentProps) {
@@ -362,6 +465,35 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   const tickerErrors = showTickerErrors ? tickerValidation.errors : [];
   const tickerFieldErrors = showTickerErrors ? tickerValidation.fieldErrors : {};
   const isAnnouncementSaving = statusBySection.announcements?.tone === "saving";
+  const activePageTitle = getAdminPageTitle(activeMobileSection);
+  const sectionStatuses = Object.values(statusBySection);
+  const hasSavingStatus = sectionStatuses.some((status) => status?.tone === "saving");
+  const hasSavedStatus = sectionStatuses.some((status) => status?.tone === "saved");
+  const hasErrorStatus = sectionStatuses.some((status) => status?.tone === "error");
+  const connectionStatus = authError
+    ? { label: "Issue", classes: "bg-red-50 text-red-700 ring-red-200" }
+    : firestoreFallbackWarning
+      ? { label: "Fallback", classes: "bg-amber-50 text-amber-700 ring-amber-200" }
+      : isLoadingFirestoreData
+        ? { label: "Syncing", classes: "bg-sky-50 text-sky-700 ring-sky-200" }
+        : { label: "Connected", classes: "bg-emerald-50 text-emerald-700 ring-emerald-200" };
+  const saveState = hasSavingStatus
+    ? { label: "Saving...", classes: "bg-amber-50 text-amber-700 ring-amber-200" }
+    : hasErrorStatus
+      ? { label: "Unsaved changes", classes: "bg-red-50 text-red-700 ring-red-200" }
+      : hasSavedStatus
+        ? { label: "Saved", classes: "bg-emerald-50 text-emerald-700 ring-emerald-200" }
+        : { label: "Saved", classes: "bg-slate-100 text-slate-600 ring-slate-200" };
+
+  function handleMobileTabSelect(targetSection: AdminSectionId) {
+    setActiveMobileSection(targetSection);
+    window.requestAnimationFrame(() => {
+      document.getElementById(targetSection)?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
 
   function updateSectionStatus(section: SectionStatusKey, status: SectionStatus | null) {
     setStatusBySection((current) => ({
@@ -844,6 +976,30 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     updateSectionStatus("prayerTimes", result.status);
   }
 
+  async function handleSwitchPrayerTimesToAutomatic() {
+    const restoreResult = disableManualPrayerTimesOverride(
+      prayerTimesCurrent,
+      new Date().toISOString(),
+    );
+
+    updateSectionStatus("prayerTimes", createSavingStatus("Kaydediliyor..."));
+
+    const result = await commitAdminSectionSave({
+      isAuthenticated,
+      nextValue: restoreResult.nextValue,
+      persist: savePrayerTimesCurrent,
+      successMessage: restoreResult.warningMessage ?? "Automatic prayer times restored.",
+    });
+
+    if (result.valueToApply) {
+      setPrayerTimesCurrent(result.valueToApply);
+      setPrayerTimesDraft(result.valueToApply.today);
+      setShowPrayerTimeErrors(false);
+    }
+
+    updateSectionStatus("prayerTimes", result.status);
+  }
+
   function handlePrayerTimeSourceChange(nextSource: PrayerTimeSourceSettings["source"]) {
     const nextSettings: PrayerTimeSourceSettings = {
       ...prayerTimeSourceSettings,
@@ -977,9 +1133,31 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   }
 
   return (
-    <main className="min-h-screen overflow-x-clip bg-slate-100 px-4 py-4 text-slate-950 sm:px-6 sm:py-8">
-      <section className="mx-auto max-w-5xl">
-        <div className="flex items-start justify-between gap-3">
+    <main
+      className="admin-dashboard min-h-[100dvh] overflow-x-clip bg-[#f4f7f4] text-slate-950"
+      style={{ paddingBottom: "calc(5.5rem + env(safe-area-inset-bottom))" }}
+    >
+      <header className="sticky top-0 z-30 border-b border-emerald-950/10 bg-white/95 px-3 py-2 shadow-sm backdrop-blur sm:hidden">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="truncate text-[0.7rem] font-semibold uppercase tracking-wide text-emerald-700">
+              ICMG Bexley TV
+            </p>
+            <h1 className="truncate text-base font-bold leading-6 text-slate-950">{activePageTitle}</h1>
+          </div>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <span className={`rounded-full px-2 py-1 text-[0.65rem] font-bold ring-1 ${connectionStatus.classes}`}>
+              {connectionStatus.label}
+            </span>
+            <span className={`rounded-full px-2 py-1 text-[0.65rem] font-bold ring-1 ${saveState.classes}`}>
+              {saveState.label}
+            </span>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto w-full max-w-6xl px-3 pb-4 pt-3 sm:px-6 sm:py-8">
+        <div className="hidden items-start justify-between gap-3 sm:flex">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 sm:text-sm">Yönetim Paneli</p>
             <h1 className="mt-1 truncate text-2xl font-bold sm:mt-2 sm:text-4xl">{displaySettings.mosque_name}</h1>
@@ -1000,6 +1178,24 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           kaydedene kadar yedek veriler kullanılabilir.
         </p>
 
+        <div className="rounded-[1.25rem] border border-white bg-white/90 p-3 shadow-[0_12px_36px_rgba(15,23,42,0.08)] ring-1 ring-emerald-950/5 sm:hidden">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="truncate text-lg font-bold leading-6 text-slate-950">{displaySettings.mosque_name}</p>
+              <p className="mt-1 truncate text-xs text-slate-500">{userEmail}</p>
+            </div>
+            <button
+              className="shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-700 transition hover:border-emerald-400"
+              onClick={() => {
+                void onLogout();
+              }}
+              type="button"
+            >
+              Çıkış
+            </button>
+          </div>
+        </div>
+
         {authError ? (
           <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
             {authError}
@@ -1018,7 +1214,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           </p>
         ) : null}
 
-        <div className="mt-4 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-sm sm:mt-6 sm:rounded-2xl sm:p-5">
+        <div className="mt-3 rounded-[1.1rem] border border-emerald-950/10 bg-white px-3 py-2 shadow-[0_12px_34px_rgba(15,23,42,0.06)] sm:mt-6 sm:rounded-2xl sm:p-5">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 sm:text-sm">Mevcut veri özeti</p>
           <p className="mt-1 truncate text-xs text-slate-700 sm:hidden">
             Dil: {getDisplayLanguageLabel(displaySettings.language)} • Duyuru: {announcements.length} • İmsak: {prayerTimesCurrent.today.fajr}
@@ -1042,7 +1238,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 sm:mt-6 sm:gap-6">
+        <div className="mt-3 grid gap-3 sm:mt-6 sm:gap-6">
           <AdminUsersSection
             disabledReason={adminUserManagementAvailability.disabledReason}
             email={adminUserEmail}
@@ -1205,6 +1401,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             onChange={setPrayerTimesDraft}
             onMobileToggle={() => setActiveMobileSection("prayer-times")}
             onSourceChange={handlePrayerTimeSourceChange}
+            onSwitchToAutomatic={handleSwitchPrayerTimesToAutomatic}
             onSubmit={handlePrayerTimesSubmit}
             prayerTimeSourceSettings={prayerTimeSourceSettings}
             prayerTimesCurrent={prayerTimesCurrent}
@@ -1246,6 +1443,34 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           />
         </div>
       </section>
+
+      <nav
+        aria-label="Admin bottom navigation"
+        className="fixed inset-x-0 bottom-0 z-40 border-t border-emerald-950/10 bg-white/95 px-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] pt-2 shadow-[0_-12px_30px_rgba(15,23,42,0.08)] backdrop-blur sm:hidden"
+      >
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+          {adminBottomNavItems.map((item) => {
+            const isActive = activeMobileSection === item.targetSection;
+
+            return (
+              <button
+                aria-current={isActive ? "page" : undefined}
+                className={`flex min-h-[3.6rem] flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[0.68rem] font-bold transition ${
+                  isActive
+                    ? "bg-emerald-700 text-white shadow-lg shadow-emerald-900/15"
+                    : "text-slate-500 hover:bg-emerald-50 hover:text-emerald-800"
+                }`}
+                key={item.label}
+                onClick={() => handleMobileTabSelect(item.targetSection)}
+                type="button"
+              >
+                <AdminTabIcon icon={item.icon} />
+                <span>{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </main>
   );
 }
