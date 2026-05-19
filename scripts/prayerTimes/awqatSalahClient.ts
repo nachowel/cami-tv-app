@@ -157,6 +157,51 @@ export function sanitizeAwqatResponseHeaders(headers: Headers) {
   return safeHeaders;
 }
 
+function getSetCookieHeaders(headers: Headers) {
+  const headersWithGetSetCookie = headers as Headers & {
+    getSetCookie?: () => string[];
+  };
+  const values = new Set<string>();
+
+  if (typeof headersWithGetSetCookie.getSetCookie === "function") {
+    for (const value of headersWithGetSetCookie.getSetCookie()) {
+      values.add(value);
+    }
+  }
+
+  const fallbackValue = headers.get("set-cookie");
+
+  if (fallbackValue) {
+    values.add(fallbackValue);
+  }
+
+  return [...values];
+}
+
+function createCookieHeader(headers: Headers) {
+  return getSetCookieHeaders(headers)
+    .map((value) => value.split(";")[0]?.trim() ?? "")
+    .filter(isNonEmptyString)
+    .join("; ");
+}
+
+function createAuthenticatedHeaders(input: {
+  accessToken: string;
+  sessionCookieHeader: string;
+  userAgent: string;
+}) {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${input.accessToken}`,
+    "User-Agent": input.userAgent,
+  };
+
+  if (input.sessionCookieHeader) {
+    headers.Cookie = input.sessionCookieHeader;
+  }
+
+  return headers;
+}
+
 function formatAwqatLoginFailureMessage(
   reason: AwqatSalahLoginFailureReason,
   attempts: number,
@@ -298,6 +343,7 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
   const sleepImpl = options.sleep ?? sleep;
   const userAgent = options.userAgent ?? DEFAULT_AWQAT_SALAH_USER_AGENT;
   let accessToken = "";
+  let sessionCookieHeader = "";
 
   async function getAuthenticatedJson(path: string) {
     if (!accessToken) {
@@ -308,17 +354,21 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
 
     try {
       response = await fetchImpl(`${baseUrl}${path}`, {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "User-Agent": userAgent,
-        },
+        headers: createAuthenticatedHeaders({
+          accessToken,
+          sessionCookieHeader,
+          userAgent,
+        }),
         method: "GET",
       });
     } catch (error) {
+      const reason = classifyAwqatLoginFailure({ error });
+      logInfo(`[Awqat Salah] authenticated fetch failed: ${reason} for ${path}`);
       throw new Error(`Awqat Salah request failed for ${path}.`, { cause: error });
     }
 
     const responseBody = await parseJsonSafely(response);
+    logInfo(`[Awqat Salah] authenticated fetch status: ${response.status} for ${path}`);
 
     if (!response.ok) {
       throw new Error(`Awqat Salah request failed for ${path} with status ${response.status}.`);
@@ -391,9 +441,14 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
         }
 
         const tokens = extractTokens(responseBody);
+        const cookieHeader = createCookieHeader(response.headers);
+
+        logInfo(`[Awqat Salah] auth token received: ${tokens.accessToken ? "yes" : "no"}`);
+        logInfo(`[Awqat Salah] session cookie received: ${cookieHeader ? "yes" : "no"}`);
 
         if (!tokens.accessToken) {
           const reason = "unexpected response";
+          logInfo("[Awqat Salah] auth success: no");
           logInfo(`[Awqat Salah] login attempt ${attempt} failed: ${reason}`);
 
           if (attempt >= loginAttempts) {
@@ -405,6 +460,8 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
         }
 
         accessToken = tokens.accessToken;
+        sessionCookieHeader = cookieHeader;
+        logInfo("[Awqat Salah] auth success: yes");
         logInfo(`[Awqat Salah] login attempt ${attempt} succeeded`);
 
         return {

@@ -222,6 +222,7 @@ test("Awqat Salah login reports unexpected successful responses without access t
 
 test("authenticated Awqat Salah place lookup uses the login token and returns place data", async () => {
   const calls: Array<{ input: string; init?: RequestInit }> = [];
+  const logs: string[] = [];
   const client = createAwqatSalahClient({
     fetchImpl: async (input, init) => {
       calls.push({
@@ -241,6 +242,7 @@ test("authenticated Awqat Salah place lookup uses the login token and returns pl
           {
             headers: {
               "content-type": "application/json",
+              "set-cookie": "AwqatSession=secret-session-cookie; Path=/; HttpOnly",
             },
             status: 200,
           },
@@ -266,6 +268,9 @@ test("authenticated Awqat Salah place lookup uses the login token and returns pl
         },
       );
     },
+    logInfo(message) {
+      logs.push(message);
+    },
   });
 
   await client.login({
@@ -287,6 +292,19 @@ test("authenticated Awqat Salah place lookup uses the login token and returns pl
     (calls[1]?.init?.headers as Record<string, string> | undefined)?.Authorization,
     "Bearer access-secret-token",
   );
+  assert.equal(
+    (calls[1]?.init?.headers as Record<string, string> | undefined)?.Cookie,
+    "AwqatSession=secret-session-cookie",
+  );
+  assert.match(
+    (calls[1]?.init?.headers as Record<string, string> | undefined)?.["User-Agent"] ?? "",
+    /ICMG-Bexley-TV-Display/,
+  );
+  assert.ok(logs.some((message) => /auth token received: yes/i.test(message)));
+  assert.ok(logs.some((message) => /session cookie received: yes/i.test(message)));
+  assert.ok(logs.some((message) => /auth success: yes/i.test(message)));
+  assert.ok(logs.some((message) => /authenticated fetch status: 200/i.test(message)));
+  assert.doesNotMatch(logs.join("\n"), /secret-user|secret-password|access-secret-token|secret-session-cookie/);
 });
 
 test("authenticated Awqat Salah prayer time lookups use official PrayerTime path endpoints and preserve the login token", async () => {

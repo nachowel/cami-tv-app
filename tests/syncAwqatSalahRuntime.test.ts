@@ -52,11 +52,26 @@ function createMockFetch(): typeof fetch {
           },
           success: true,
         }),
-        { status: 200 },
+        {
+          headers: {
+            "set-cookie": "AwqatSession=fake-session-cookie; Path=/; HttpOnly",
+          },
+          status: 200,
+        },
       );
     }
 
     if (url.endsWith("/api/PrayerTime/Daily/14096") && method === "GET") {
+      const headers = init?.headers as Record<string, string> | undefined;
+
+      if (
+        headers?.Authorization !== "Bearer fake-access-token" ||
+        headers?.Cookie !== "AwqatSession=fake-session-cookie" ||
+        !/ICMG-Bexley-TV-Display/.test(headers?.["User-Agent"] ?? "")
+      ) {
+        return new Response(JSON.stringify({ message: "missing auth session" }), { status: 401 });
+      }
+
       return new Response(
         JSON.stringify({
           data: [
@@ -215,7 +230,12 @@ test("production Awqat Salah sync writes to prayerTimes/current when source is a
   });
 
   assert.ok(logs.some((l) => l.includes("[Awqat Salah Sync] Completed successfully")), "should log sync completion");
+  assert.ok(logs.some((message) => /auth token received: yes/i.test(message)));
+  assert.ok(logs.some((message) => /session cookie received: yes/i.test(message)));
+  assert.ok(logs.some((message) => /auth success: yes/i.test(message)));
+  assert.ok(logs.some((message) => /authenticated fetch status: 200/i.test(message)));
   assert.doesNotMatch(logs.join("\n"), /fake-access-token/i, "no secrets in logs");
+  assert.doesNotMatch(logs.join("\n"), /fake-session-cookie/i, "no cookies in logs");
   assert.doesNotMatch(logs.join("\n"), /test-password/i, "no secrets in logs");
 });
 
