@@ -62,6 +62,18 @@ select {
   min-width: 320px;
 }
 
+.admin-dashboard-shell {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+@media (max-width: 1023px) {
+  .admin-dashboard-shell {
+    display: block;
+  }
+}
+
 @media (max-width: 639px) {
   .admin-dashboard :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
     min-height: 2.625rem;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AdminUsersSection } from "../components/admin/AdminUsersSection";
 import { AnnouncementsSection } from "../components/admin/AnnouncementsSection";
 import type { SectionStatus } from "../components/admin/AdminStatusNotice";
@@ -133,12 +133,30 @@ interface AdminBottomNavItem {
   targetSection: AdminSectionId;
 }
 
+interface AdminDesktopNavItem {
+  icon: AdminBottomNavIcon;
+  label: string;
+  targetSection: AdminSectionId;
+}
+
 const adminBottomNavItems: AdminBottomNavItem[] = [
   { icon: "home", label: "Home", targetSection: "announcements" },
   { icon: "content", label: "Content", targetSection: "daily-content" },
   { icon: "prayer", label: "Prayer", targetSection: "prayer-times" },
   { icon: "slides", label: "Slides", targetSection: "donation-display" },
   { icon: "settings", label: "Settings", targetSection: "language-settings" },
+];
+
+const adminDesktopNavItems: AdminDesktopNavItem[] = [
+  { icon: "settings", label: "Admin Kullanıcıları", targetSection: "admin-users" },
+  { icon: "settings", label: "Dil Ayarı", targetSection: "language-settings" },
+  { icon: "content", label: "Bağış Bilgileri", targetSection: "donation-settings" },
+  { icon: "slides", label: "Donation Display", targetSection: "donation-display" },
+  { icon: "home", label: "Duyurular", targetSection: "announcements" },
+  { icon: "prayer", label: "Namaz Vakitleri", targetSection: "prayer-times" },
+  { icon: "content", label: "Günün İçeriği", targetSection: "daily-content" },
+  { icon: "content", label: "Alt Şerit Yazısı", targetSection: "footer-ticker" },
+  { icon: "settings", label: "Ekran Ayarları", targetSection: "theme-mode" },
 ];
 
 function createIdleDonationImageUploadState(): DonationImageUploadState {
@@ -376,6 +394,9 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
   const [showDailyContentErrors, setShowDailyContentErrors] = useState(false);
   const [showTickerErrors, setShowTickerErrors] = useState(false);
   const [activeMobileSection, setActiveMobileSection] = useState<AdminSectionId>("announcements");
+  const [activeDesktopSection, setActiveDesktopSection] = useState<AdminSectionId>("admin-users");
+  const pendingDesktopScrollTarget = useRef<AdminSectionId | null>(null);
+  const pendingDesktopScrollTimeout = useRef<number | null>(null);
   const [isAnnouncementFormVisible, setIsAnnouncementFormVisible] = useState(false);
   const donationAmountValidation = useMemo(
     () => validateDonationAmount(donationAmountDraft),
@@ -485,6 +506,10 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       : hasSavedStatus
         ? { label: "Saved", classes: "bg-emerald-50 text-emerald-700 ring-emerald-200" }
         : { label: "Saved", classes: "bg-slate-100 text-slate-600 ring-slate-200" };
+  const activeDesktopBreadcrumb = useMemo(() => {
+    const item = adminDesktopNavItems.find((item) => item.targetSection === activeDesktopSection);
+    return { group: "Admin", label: item?.label ?? "Admin Kullanıcıları" };
+  }, [activeDesktopSection]);
 
   function handleMobileTabSelect(targetSection: AdminSectionId) {
     setActiveMobileSection(targetSection);
@@ -495,6 +520,75 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       });
     });
   }
+
+  function handleDesktopNavSelect(targetSection: AdminSectionId) {
+    pendingDesktopScrollTarget.current = targetSection;
+    if (pendingDesktopScrollTimeout.current !== null) {
+      window.clearTimeout(pendingDesktopScrollTimeout.current);
+    }
+    pendingDesktopScrollTimeout.current = window.setTimeout(() => {
+      pendingDesktopScrollTarget.current = null;
+      pendingDesktopScrollTimeout.current = null;
+    }, 900);
+    setActiveDesktopSection(targetSection);
+    document.getElementById(targetSection)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }
+
+  useEffect(() => {
+    function syncActiveDesktopSectionWithScroll() {
+      if (!window.matchMedia("(min-width: 1024px)").matches) {
+        return;
+      }
+
+      let currentSection = adminDesktopNavItems[0].targetSection;
+      const activationOffset = 104;
+      if (pendingDesktopScrollTarget.current !== null) {
+        const pendingSection = document.getElementById(pendingDesktopScrollTarget.current);
+        if (
+          pendingSection &&
+          Math.abs(pendingSection.getBoundingClientRect().top - activationOffset) > 24
+        ) {
+          return;
+        }
+
+        pendingDesktopScrollTarget.current = null;
+        if (pendingDesktopScrollTimeout.current !== null) {
+          window.clearTimeout(pendingDesktopScrollTimeout.current);
+          pendingDesktopScrollTimeout.current = null;
+        }
+      }
+
+      for (const item of adminDesktopNavItems) {
+        const section = document.getElementById(item.targetSection);
+        if (!section) {
+          continue;
+        }
+
+        if (section.getBoundingClientRect().top <= activationOffset) {
+          currentSection = item.targetSection;
+        } else {
+          break;
+        }
+      }
+
+      setActiveDesktopSection(currentSection);
+    }
+
+    syncActiveDesktopSectionWithScroll();
+    window.addEventListener("scroll", syncActiveDesktopSectionWithScroll, { passive: true });
+    window.addEventListener("resize", syncActiveDesktopSectionWithScroll);
+
+    return () => {
+      window.removeEventListener("scroll", syncActiveDesktopSectionWithScroll);
+      window.removeEventListener("resize", syncActiveDesktopSectionWithScroll);
+      if (pendingDesktopScrollTimeout.current !== null) {
+        window.clearTimeout(pendingDesktopScrollTimeout.current);
+      }
+    };
+  }, []);
 
   function updateSectionStatus(section: SectionStatusKey, status: SectionStatus | null) {
     setStatusBySection((current) => ({
@@ -1176,8 +1270,78 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         </div>
       </header>
 
-      <section className="mx-auto w-full max-w-6xl px-3 pb-4 pt-3 sm:px-6 sm:py-8">
-        <div className="hidden items-start justify-between gap-3 sm:flex">
+      <div className="admin-dashboard-shell lg:flex lg:min-h-[100dvh] lg:items-stretch lg:bg-[#f2f6f1] lg:p-4">
+        <aside className="hidden w-64 shrink-0 overflow-hidden rounded-2xl bg-[#0a3a2a] text-white shadow-[0_22px_50px_rgba(10,58,42,0.22)] lg:sticky lg:top-4 lg:flex lg:h-[calc(100dvh-2rem)] lg:flex-col">
+          <div className="border-b border-white/10 px-4 py-4">
+            <div className="flex items-center gap-2">
+              <span className="h-2.5 w-2.5 rounded-[0.2rem] bg-[#1d9e75]" aria-hidden="true" />
+              <p className="text-sm font-semibold leading-5">ICMG Bexley TV</p>
+            </div>
+            <p className="mt-1 pl-5 text-xs text-white/45">Admin Paneli</p>
+          </div>
+
+          <nav aria-label="Admin desktop navigation" className="flex-1 overflow-y-auto px-2 py-3">
+            <div className="grid gap-1">
+              {adminDesktopNavItems.map((item) => {
+                const isActive = activeDesktopSection === item.targetSection;
+
+                return (
+                  <button
+                    aria-current={isActive ? "page" : undefined}
+                    className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium transition ${
+                      isActive
+                        ? "bg-[#1d9e75] text-white shadow-sm"
+                        : "text-white/65 hover:bg-white/10 hover:text-white"
+                    }`}
+                    key={item.targetSection}
+                    onClick={() => handleDesktopNavSelect(item.targetSection)}
+                    type="button"
+                  >
+                    <AdminTabIcon icon={item.icon} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+
+          <div className="border-t border-white/10 p-2">
+            <button
+              className="flex min-h-9 w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-medium text-white/65 transition hover:bg-white/10 hover:text-white"
+              onClick={() => {
+                void onLogout();
+              }}
+              type="button"
+            >
+              <AdminTabIcon icon="settings" />
+              <span>Çıkış</span>
+            </button>
+          </div>
+        </aside>
+
+        <div className="min-w-0 flex-1">
+          <header className="hidden h-14 items-center justify-between gap-4 border-b border-emerald-950/10 bg-white px-5 shadow-sm lg:sticky lg:top-4 lg:z-20 lg:flex">
+            <div className="min-w-0 text-sm text-slate-500">
+              <span>{activeDesktopBreadcrumb.group}</span>
+              <span className="px-2 text-slate-300">/</span>
+              <span className="font-semibold text-slate-950">{activeDesktopBreadcrumb.label}</span>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-100">
+                <span className="h-1.5 w-1.5 rounded-full bg-[#1d9e75]" aria-hidden="true" />
+                Canlı
+              </span>
+              <a
+                className="inline-flex min-h-9 items-center rounded-lg border border-emerald-900/15 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-900 transition hover:border-emerald-700 hover:text-emerald-700"
+                href="/tv"
+              >
+                TV'yi Aç
+              </a>
+            </div>
+          </header>
+
+          <section className="mx-auto w-full max-w-6xl px-3 pb-4 pt-3 sm:px-6 sm:py-8 lg:max-w-5xl lg:px-6 lg:pb-8 lg:pt-5">
+        <div className="hidden items-start justify-between gap-3 sm:flex lg:hidden">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700 sm:text-sm">Yönetim Paneli</p>
             <h1 className="mt-1 truncate text-2xl font-bold sm:mt-2 sm:text-4xl">{displaySettings.mosque_name}</h1>
@@ -1193,7 +1357,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             Çıkış yap
           </button>
         </div>
-        <p className="mt-3 hidden max-w-3xl text-base leading-7 text-slate-700 sm:block sm:text-lg">
+        <p className="mt-3 hidden max-w-3xl text-base leading-7 text-slate-700 sm:block sm:text-lg lg:hidden">
           Bu sayfa Firebase Auth ile korunur. Her bölüm veri varsa Firestore'dan okunur ve siz
           kaydedene kadar yedek veriler kullanılabilir.
         </p>
@@ -1234,7 +1398,10 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           </p>
         ) : null}
 
-        <div className="mt-3 rounded-[1.1rem] border border-emerald-950/10 bg-white px-3 py-2 shadow-[0_12px_34px_rgba(15,23,42,0.06)] sm:mt-6 sm:rounded-2xl sm:p-5">
+        <div
+          className="mt-3 scroll-mt-24 rounded-[1.1rem] border border-emerald-950/10 bg-white px-3 py-2 shadow-[0_12px_34px_rgba(15,23,42,0.06)] sm:mt-6 sm:rounded-2xl sm:p-5 lg:mt-0 lg:scroll-mt-20 lg:rounded-xl lg:border-emerald-950/10 lg:p-4 lg:shadow-[0_10px_26px_rgba(15,23,42,0.05)]"
+          id="admin-overview"
+        >
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 sm:text-sm">Mevcut veri özeti</p>
           <p className="mt-1 truncate text-xs text-slate-700 sm:hidden">
             Dil: {getDisplayLanguageLabel(displaySettings.language)} • Duyuru: {announcements.length} • İmsak: {prayerTimesCurrent.today.fajr}
@@ -1462,7 +1629,9 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             themeMode={displaySettings.theme_mode}
           />
         </div>
-      </section>
+          </section>
+        </div>
+      </div>
 
       <nav
         aria-label="Admin bottom navigation"

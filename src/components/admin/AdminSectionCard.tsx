@@ -23,8 +23,8 @@ export function AdminSectionCard({
 
   return (
     <section
-      className={`scroll-mt-24 border border-emerald-950/10 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.06)] sm:scroll-mt-28 ${
-        isClosedMobileAccordion ? "rounded-xl p-0 sm:rounded-2xl sm:p-6" : "rounded-[1.1rem] p-3 sm:rounded-2xl sm:p-6"
+      className={`scroll-mt-24 border border-emerald-950/10 bg-white shadow-[0_10px_28px_rgba(15,23,42,0.055)] sm:scroll-mt-28 lg:scroll-mt-20 lg:shadow-[0_8px_22px_rgba(15,23,42,0.045)] ${
+        isClosedMobileAccordion ? "rounded-xl p-0 sm:rounded-2xl sm:p-6 lg:rounded-xl lg:p-5" : "rounded-[1.1rem] p-3 sm:rounded-2xl sm:p-6 lg:rounded-xl lg:p-5"
       }`}
       id={id}
     >
@@ -50,15 +50,15 @@ export function AdminSectionCard({
           </button>
         ) : null}
         <div className={isMobileAccordion ? "hidden sm:block" : undefined}>
-          <h2 className="text-lg font-bold text-slate-950">{title}</h2>
-          <p className="mt-1 hidden text-sm leading-6 text-slate-600 sm:block">{description}</p>
+          <h2 className="text-lg font-bold text-slate-950 lg:text-base">{title}</h2>
+          <p className="mt-1 hidden text-sm leading-6 text-slate-600 sm:block lg:text-xs lg:leading-5">{description}</p>
         </div>
       </div>
       <div
         className={
           isMobileAccordion
-            ? `${mobileOpen ? "mt-4 block" : "hidden"} sm:mt-5 sm:block`
-            : "mt-5"
+            ? `${mobileOpen ? "mt-4 block" : "hidden"} sm:mt-5 sm:block lg:mt-4`
+            : "mt-5 lg:mt-4"
         }
         id={contentId}
       >
