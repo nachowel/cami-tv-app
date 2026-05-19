@@ -324,3 +324,100 @@ test("production Awqat Salah sync falls back to aladhan and logs the awqat failu
   assert.ok(logs.some((message) => /falling back to aladhan/i.test(message)));
   assert.ok(logs.some((message) => /awqat salah fetch failed/i.test(message)));
 });
+
+test("production Awqat Salah sync keeps Aladhan fallback after repeated Awqat login network resets", async () => {
+  const logs: string[] = [];
+  let loginAttempts = 0;
+  const { db, state } = createFakeDb({
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+    effectiveSource: "manual",
+    providerSource: null,
+    method: null,
+    fetchedAt: null,
+    automaticTimes: null,
+  });
+  state.valueByPath["settings/prayerTimes"] = { source: "awqat-salah" };
+
+  const fetchImpl = (async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? "GET";
+
+    if (url.endsWith("/Auth/Login") && method === "POST") {
+      loginAttempts += 1;
+      const error = new Error("socket hang up") as Error & { code?: string };
+      error.code = "ECONNRESET";
+      throw error;
+    }
+
+    if (url.includes("api.aladhan.com/v1/timingsByCity/05-07-2026")) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            date: { gregorian: { date: "05-07-2026" } },
+            timings: {
+              Fajr: "03:31",
+              Sunrise: "05:21",
+              Dhuhr: "13:01",
+              Asr: "17:08",
+              Maghrib: "20:30",
+              Isha: "22:11",
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    }
+
+    if (url.includes("api.aladhan.com/v1/timingsByCity/06-07-2026")) {
+      return new Response(
+        JSON.stringify({
+          data: {
+            date: { gregorian: { date: "06-07-2026" } },
+            timings: {
+              Fajr: "03:32",
+              Sunrise: "05:22",
+              Dhuhr: "13:01",
+              Asr: "17:09",
+              Maghrib: "20:29",
+              Isha: "22:10",
+            },
+          },
+        }),
+        { status: 200 },
+      );
+    }
+
+    return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
+  }) as typeof fetch;
+
+  await runProductionAwqatSalahSync({
+    db,
+    env: {
+      AWQAT_SALAH_USERNAME: "test-user",
+      AWQAT_SALAH_PASSWORD: "test-password",
+      PRAYER_CITY: "London",
+      PRAYER_COUNTRY: "United Kingdom",
+      PRAYER_TIMEZONE: "Europe/London",
+      PRAYER_METHOD: "13",
+    },
+    fetchImpl,
+    logError(message, error) {
+      logs.push(`${message}:${error instanceof Error ? error.message : String(error)}`);
+    },
+    logInfo(message) {
+      logs.push(message);
+    },
+    now: new Date("2026-07-05T01:00:00Z"),
+  });
+
+  assert.equal(loginAttempts, 3);
+  assert.equal(state.writes.length, 1);
+  const saved = state.writes[0]?.value as PrayerTimesCurrent;
+  assert.equal(saved.providerSource, "aladhan");
+  assert.ok(logs.some((message) => /login attempt 1 failed: network reset/i.test(message)));
+  assert.ok(logs.some((message) => /login attempt 3 failed: network reset/i.test(message)));
+  assert.ok(logs.some((message) => /Awqat Salah login failed: network reset after 3 attempts/i.test(message)));
+  assert.ok(logs.some((message) => /falling back to aladhan/i.test(message)));
+  assert.doesNotMatch(logs.join("\n"), /test-user|test-password/);
+});

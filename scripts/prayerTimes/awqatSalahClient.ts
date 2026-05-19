@@ -1,4 +1,8 @@
 const DEFAULT_AWQAT_SALAH_BASE_URL = "https://awqatsalah.diyanet.gov.tr";
+const DEFAULT_AWQAT_SALAH_USER_AGENT =
+  "ICMG-Bexley-TV-Display/1.0 (+https://www.icmgbexley.org.uk)";
+const DEFAULT_AWQAT_LOGIN_ATTEMPTS = 3;
+const DEFAULT_AWQAT_LOGIN_BACKOFF_MS = 250;
 
 export interface AwqatSalahCredentials {
   username: string;
@@ -34,9 +38,21 @@ export interface AwqatSalahLoginResult {
   hasRefreshToken: boolean;
 }
 
+export type AwqatSalahLoginFailureReason =
+  | "auth failed"
+  | "blocked"
+  | "network reset"
+  | "timeout"
+  | "unexpected response";
+
 export interface AwqatSalahClientOptions {
   baseUrl?: string;
   fetchImpl?: typeof fetch;
+  logInfo?: (message: string) => void;
+  loginAttempts?: number;
+  loginBackoffMs?: number;
+  sleep?: (delayMs: number) => Promise<void>;
+  userAgent?: string;
 }
 
 interface ParsedAwqatSalahTokens {
@@ -53,6 +69,101 @@ function asRecord(value: unknown) {
   return value !== null && typeof value === "object"
     ? value as Record<string, unknown>
     : undefined;
+}
+
+function readErrorCode(error: unknown): string | undefined {
+  const record = asRecord(error);
+  const code = record?.code;
+
+  if (isNonEmptyString(code)) {
+    return code;
+  }
+
+  const cause = record?.cause;
+  return cause === error ? undefined : readErrorCode(cause);
+}
+
+function readErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function sleep(delayMs: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, delayMs);
+  });
+}
+
+function isRetryableAwqatLoginFailure(reason: AwqatSalahLoginFailureReason) {
+  return reason === "network reset" || reason === "timeout" || reason === "unexpected response";
+}
+
+export function classifyAwqatLoginFailure(input: {
+  error?: unknown;
+  status?: number;
+}): AwqatSalahLoginFailureReason {
+  if (typeof input.status === "number") {
+    if (input.status === 401 || input.status === 400) {
+      return "auth failed";
+    }
+
+    if (input.status === 403 || input.status === 429 || input.status === 451) {
+      return "blocked";
+    }
+
+    return "unexpected response";
+  }
+
+  const code = readErrorCode(input.error)?.toUpperCase();
+  const message = readErrorMessage(input.error).toLowerCase();
+
+  if (code === "ECONNRESET" || message.includes("socket hang up") || message.includes("connection reset")) {
+    return "network reset";
+  }
+
+  if (
+    code === "ETIMEDOUT" ||
+    code === "UND_ERR_CONNECT_TIMEOUT" ||
+    code === "ABORT_ERR" ||
+    message.includes("timed out") ||
+    message.includes("timeout")
+  ) {
+    return "timeout";
+  }
+
+  if (code === "EACCES" || code === "EPERM" || message.includes("blocked") || message.includes("forbidden")) {
+    return "blocked";
+  }
+
+  return "unexpected response";
+}
+
+export function sanitizeAwqatResponseHeaders(headers: Headers) {
+  const safeHeaders: Record<string, string> = {};
+  const excludedHeaders = new Set([
+    "authorization",
+    "cookie",
+    "proxy-authorization",
+    "set-cookie",
+    "www-authenticate",
+  ]);
+
+  headers.forEach((value, key) => {
+    const normalizedKey = key.toLowerCase();
+    if (!excludedHeaders.has(normalizedKey)) {
+      safeHeaders[normalizedKey] = value;
+    }
+  });
+
+  return safeHeaders;
+}
+
+function formatAwqatLoginFailureMessage(
+  reason: AwqatSalahLoginFailureReason,
+  attempts: number,
+  status?: number,
+) {
+  const statusSuffix = typeof status === "number" ? ` (status ${status})` : "";
+  return `Awqat Salah login failed: ${reason} after ${attempts} attempt${attempts === 1 ? "" : "s"}${statusSuffix}.`;
 }
 
 function readNestedData(value: unknown): unknown {
@@ -181,6 +292,11 @@ export function readAwqatSalahCredentialsFromEnv(
 export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
   const baseUrl = (options.baseUrl ?? DEFAULT_AWQAT_SALAH_BASE_URL).replace(/\/+$/, "");
   const fetchImpl = options.fetchImpl ?? fetch;
+  const logInfo = options.logInfo ?? (() => undefined);
+  const loginAttempts = Math.max(1, Math.floor(options.loginAttempts ?? DEFAULT_AWQAT_LOGIN_ATTEMPTS));
+  const loginBackoffMs = Math.max(0, options.loginBackoffMs ?? DEFAULT_AWQAT_LOGIN_BACKOFF_MS);
+  const sleepImpl = options.sleep ?? sleep;
+  const userAgent = options.userAgent ?? DEFAULT_AWQAT_SALAH_USER_AGENT;
   let accessToken = "";
 
   async function getAuthenticatedJson(path: string) {
@@ -194,6 +310,7 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
       response = await fetchImpl(`${baseUrl}${path}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`,
+          "User-Agent": userAgent,
         },
         method: "GET",
       });
@@ -232,44 +349,74 @@ export function createAwqatSalahClient(options: AwqatSalahClientOptions = {}) {
     async login(credentials: AwqatSalahCredentials): Promise<AwqatSalahLoginResult> {
       const validatedCredentials = validateCredentials(credentials);
 
-      let response: Response;
+      for (let attempt = 1; attempt <= loginAttempts; attempt += 1) {
+        let response: Response;
 
-      try {
-        response = await fetchImpl(`${baseUrl}/Auth/Login`, {
-          body: JSON.stringify({
-            email: validatedCredentials.username,
-            password: validatedCredentials.password,
-          }),
-          headers: {
-            "content-type": "application/json",
-          },
-          method: "POST",
-        });
-      } catch (error) {
-        throw new Error("Awqat Salah login request failed.", { cause: error });
+        try {
+          response = await fetchImpl(`${baseUrl}/Auth/Login`, {
+            body: JSON.stringify({
+              email: validatedCredentials.username,
+              password: validatedCredentials.password,
+            }),
+            headers: {
+              "content-type": "application/json",
+              "User-Agent": userAgent,
+            },
+            method: "POST",
+          });
+        } catch (error) {
+          const reason = classifyAwqatLoginFailure({ error });
+          logInfo(`[Awqat Salah] login attempt ${attempt} failed: ${reason}`);
+
+          if (attempt >= loginAttempts || !isRetryableAwqatLoginFailure(reason)) {
+            throw new Error(formatAwqatLoginFailureMessage(reason, attempt), { cause: error });
+          }
+
+          await sleepImpl(loginBackoffMs * 2 ** (attempt - 1));
+          continue;
+        }
+
+        const responseBody = await parseJsonSafely(response);
+
+        if (!response.ok) {
+          const reason = classifyAwqatLoginFailure({ status: response.status });
+          logInfo(`[Awqat Salah] login attempt ${attempt} failed: ${reason} (status ${response.status})`);
+
+          if (attempt >= loginAttempts || !isRetryableAwqatLoginFailure(reason)) {
+            throw new Error(formatAwqatLoginFailureMessage(reason, attempt, response.status));
+          }
+
+          await sleepImpl(loginBackoffMs * 2 ** (attempt - 1));
+          continue;
+        }
+
+        const tokens = extractTokens(responseBody);
+
+        if (!tokens.accessToken) {
+          const reason = "unexpected response";
+          logInfo(`[Awqat Salah] login attempt ${attempt} failed: ${reason}`);
+
+          if (attempt >= loginAttempts) {
+            throw new Error(formatAwqatLoginFailureMessage(reason, attempt));
+          }
+
+          await sleepImpl(loginBackoffMs * 2 ** (attempt - 1));
+          continue;
+        }
+
+        accessToken = tokens.accessToken;
+        logInfo(`[Awqat Salah] login attempt ${attempt} succeeded`);
+
+        return {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+          tokenType: tokens.tokenType,
+          hasAccessToken: true,
+          hasRefreshToken: isNonEmptyString(tokens.refreshToken),
+        };
       }
 
-      const responseBody = await parseJsonSafely(response);
-
-      if (!response.ok) {
-        throw new Error(`Awqat Salah login failed with status ${response.status}.`);
-      }
-
-      const tokens = extractTokens(responseBody);
-
-      if (!tokens.accessToken) {
-        throw new Error("Awqat Salah login succeeded but no access token was returned.");
-      }
-
-      accessToken = tokens.accessToken;
-
-      return {
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-        tokenType: tokens.tokenType,
-        hasAccessToken: true,
-        hasRefreshToken: isNonEmptyString(tokens.refreshToken),
-      };
+      throw new Error(formatAwqatLoginFailureMessage("unexpected response", loginAttempts));
     },
     async getCountries() {
       return normalizePlaceArray("/api/Place/Countries", await getAuthenticatedJson("/api/Place/Countries"));

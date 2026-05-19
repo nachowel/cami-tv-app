@@ -7,6 +7,7 @@
     "admin:set-claim": "node --experimental-strip-types scripts/auth/setAdminClaim.ts",
     "dev": "vite",
     "build": "vite build && tsc -b",
+    "diagnose:awqat-login": "node --experimental-strip-types scripts/prayerTimes/diagnoseAwqatSalahLogin.ts",
     "prayer-times:sync": "node --experimental-strip-types scripts/prayerTimes/syncPrayerTimes.ts",
     "prayer-times:verify-sync": "node --experimental-strip-types scripts/prayerTimes/verifyPrayerTimeSync.ts",
     "seed:firestore": "node --experimental-strip-types scripts/firestore/seedFirestore.ts",

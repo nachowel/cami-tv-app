@@ -146,7 +146,10 @@ export async function runProductionAwqatSalahSync({
 
   try {
     const credentials = readAwqatSalahCredentialsFromEnv(env);
-    const client = createAwqatSalahClient(fetchImpl ? { fetchImpl } : undefined);
+    const client = createAwqatSalahClient({
+      ...(fetchImpl ? { fetchImpl } : {}),
+      logInfo,
+    });
 
     await client.login(credentials);
     const dailyPayload = await client.getDailyPrayerTimes(LOCKED_CITY_ID);
