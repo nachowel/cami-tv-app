@@ -76,6 +76,7 @@ import {
 } from "../services/donationSlideUploadService.ts";
 import {
   createManualPrayerTimesSaveValue,
+  createPrayerTimeSourceSelectionUpdate,
   disableManualPrayerTimesOverride,
 } from "../components/admin/prayerTimeAdminState.ts";
 import {
@@ -1000,28 +1001,47 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     updateSectionStatus("prayerTimes", result.status);
   }
 
-  function handlePrayerTimeSourceChange(nextSource: PrayerTimeSourceSettings["source"]) {
-    const nextSettings: PrayerTimeSourceSettings = {
-      ...prayerTimeSourceSettings,
-      source: nextSource,
+  async function handlePrayerTimeSourceChange(nextSource: PrayerTimeSourceSettings["source"]) {
+    const selectionUpdate = createPrayerTimeSourceSelectionUpdate({
+      currentPrayerTimes: prayerTimesCurrent,
+      currentSettings: prayerTimeSourceSettings,
+      nextSource,
       updatedAt: new Date().toISOString(),
       updatedBy: userEmail,
-    };
+    });
 
     updateSectionStatus("prayerTimes", createSavingStatus("Kaydediliyor..."));
 
-    void commitAdminSectionSave({
+    const settingsResult = await commitAdminSectionSave({
       isAuthenticated,
-      nextValue: nextSettings,
+      nextValue: selectionUpdate.nextSettings,
       persist: savePrayerTimeSettings,
-      successMessage: "Prayer time source saved.",
-    }).then((result) => {
-      if (result.valueToApply) {
-        setPrayerTimeSourceSettings(result.valueToApply);
-      }
-
-      updateSectionStatus("prayerTimes", result.status);
+      successMessage: selectionUpdate.userMessage,
     });
+
+    if (settingsResult.valueToApply) {
+      setPrayerTimeSourceSettings(settingsResult.valueToApply);
+    }
+
+    if (!settingsResult.valueToApply || !selectionUpdate.nextPrayerTimesCurrent) {
+      updateSectionStatus("prayerTimes", settingsResult.status);
+      return;
+    }
+
+    const currentResult = await commitAdminSectionSave({
+      isAuthenticated,
+      nextValue: selectionUpdate.nextPrayerTimesCurrent,
+      persist: savePrayerTimesCurrent,
+      successMessage: selectionUpdate.userMessage,
+    });
+
+    if (currentResult.valueToApply) {
+      setPrayerTimesCurrent(currentResult.valueToApply);
+      setPrayerTimesDraft(currentResult.valueToApply.today);
+      setShowPrayerTimeErrors(false);
+    }
+
+    updateSectionStatus("prayerTimes", currentResult.status);
   }
 
   async function handleDailyContentSubmit() {

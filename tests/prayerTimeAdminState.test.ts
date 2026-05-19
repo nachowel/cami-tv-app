@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import { mockDisplayData } from "../src/data/mockDisplayData.ts";
 import {
+  createPrayerTimeSourceSelectionUpdate,
   createManualPrayerTimesSaveValue,
   disableManualPrayerTimesOverride,
   getPrayerTimesAdminModeState,
@@ -162,6 +163,143 @@ test("configured Awqat with effective Aladhan shows fallback warning", () => {
 
   assert.match(result.statusMessage ?? "", /Aladhan fallback/i);
   assert.equal(result.displayedPrayerTimesLabel, "Aladhan API");
+});
+
+test("selecting Awqat source restores saved automatic Awqat times instead of only changing the label", () => {
+  const automaticTimes = {
+    date: "2026-07-05" as const,
+    today: {
+      fajr: "03:28" as const,
+      sunrise: "05:20" as const,
+      dhuhr: "13:02" as const,
+      asr: "17:10" as const,
+      maghrib: "20:34" as const,
+      isha: "22:15" as const,
+    },
+    tomorrow: {
+      fajr: "03:30" as const,
+      sunrise: "05:21" as const,
+      dhuhr: "13:03" as const,
+      asr: "17:11" as const,
+      maghrib: "20:33" as const,
+      isha: "22:14" as const,
+    },
+  };
+
+  const result = createPrayerTimeSourceSelectionUpdate({
+    currentPrayerTimes: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: true,
+      effectiveSource: "manual",
+      providerSource: "awqat-salah",
+      provider: "awqat",
+      source: "awqat",
+      automaticTimes,
+    },
+    currentSettings: {
+      source: "manual",
+      updatedAt: null,
+    },
+    nextSource: "awqat-salah",
+    updatedAt: "2026-07-05T12:00:00.000Z",
+    updatedBy: "admin@example.com",
+  });
+
+  assert.equal(result.nextSettings.source, "awqat-salah");
+  assert.equal(result.nextPrayerTimesCurrent?.manualOverride, false);
+  assert.equal(result.nextPrayerTimesCurrent?.effectiveSource, "awqat-salah");
+  assert.equal(result.nextPrayerTimesCurrent?.providerSource, "awqat-salah");
+  assert.equal(result.nextPrayerTimesCurrent?.provider, "awqat");
+  assert.equal(result.nextPrayerTimesCurrent?.source, "awqat");
+  assert.equal(result.nextPrayerTimesCurrent?.today.fajr, "03:28");
+  assert.equal(result.nextPrayerTimesCurrent?.tomorrow?.fajr, "03:30");
+});
+
+test("selecting Awqat source without saved automatic Awqat times only updates source settings", () => {
+  const result = createPrayerTimeSourceSelectionUpdate({
+    currentPrayerTimes: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: true,
+      effectiveSource: "manual",
+      automaticTimes: null,
+    },
+    currentSettings: {
+      source: "manual",
+      updatedAt: null,
+    },
+    nextSource: "awqat-salah",
+    updatedAt: "2026-07-05T12:00:00.000Z",
+    updatedBy: "admin@example.com",
+  });
+
+  assert.equal(result.nextSettings.source, "awqat-salah");
+  assert.equal(result.nextPrayerTimesCurrent, null);
+  assert.match(result.userMessage, /waiting for next sync/i);
+});
+
+test("manualOverride true means TV remains on manual top-level times", () => {
+  const result = getPrayerTimesAdminSourceSummary(
+    {
+      source: "awqat-salah",
+      updatedAt: "2026-07-05T00:30:00.000Z",
+    },
+    {
+      ...mockDisplayData.prayerTimes,
+      today: {
+        ...mockDisplayData.prayerTimes.today,
+        fajr: "06:44",
+      },
+      manualOverride: true,
+      effectiveSource: "manual",
+      providerSource: "awqat-salah",
+      automaticTimes: {
+        date: "2026-07-05",
+        today: {
+          fajr: "03:28",
+          sunrise: "05:20",
+          dhuhr: "13:02",
+          asr: "17:10",
+          maghrib: "20:34",
+          isha: "22:15",
+        },
+        tomorrow: null,
+      },
+    },
+  );
+
+  assert.equal(result.displayedPrayerTimesLabel, "Manual Entry");
+  assert.match(result.manualOverrideWarning ?? "", /manual/i);
+});
+
+test("manualOverride false with Awqat automaticTimes means TV can display automatic Awqat times", () => {
+  const automaticTimes = {
+    date: "2026-07-05" as const,
+    today: {
+      fajr: "03:28" as const,
+      sunrise: "05:20" as const,
+      dhuhr: "13:02" as const,
+      asr: "17:10" as const,
+      maghrib: "20:34" as const,
+      isha: "22:15" as const,
+    },
+    tomorrow: null,
+  };
+  const restored = disableManualPrayerTimesOverride(
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: true,
+      effectiveSource: "manual",
+      providerSource: "awqat-salah",
+      provider: "awqat",
+      source: "awqat",
+      automaticTimes,
+    },
+    "2026-07-05T12:00:00.000Z",
+  ).nextValue;
+
+  assert.equal(restored.manualOverride, false);
+  assert.equal(restored.effectiveSource, "awqat-salah");
+  assert.equal(restored.today.fajr, automaticTimes.today.fajr);
 });
 
 test("createManualPrayerTimesSaveValue updates effective prayer times and preserves automaticTimes", () => {

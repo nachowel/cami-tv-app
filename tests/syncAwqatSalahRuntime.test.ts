@@ -91,6 +91,45 @@ function createMockFetch(): typeof fetch {
       );
     }
 
+    if (url.endsWith("/api/PrayerTime/Weekly/14096") && method === "GET") {
+      const headers = init?.headers as Record<string, string> | undefined;
+
+      if (
+        headers?.Authorization !== "Bearer fake-access-token" ||
+        headers?.Cookie !== "AwqatSession=fake-session-cookie" ||
+        !/ICMG-Bexley-TV-Display/.test(headers?.["User-Agent"] ?? "")
+      ) {
+        return new Response(JSON.stringify({ message: "missing auth session" }), { status: 401 });
+      }
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              asr: "17:10",
+              dhuhr: "13:02",
+              fajr: "03:28",
+              gregorianDateLongIso8601: "2026-07-05T00:00:00+03:00",
+              isha: "22:15",
+              maghrib: "20:34",
+              sunrise: "05:20",
+            },
+            {
+              asr: "17:11",
+              dhuhr: "13:03",
+              fajr: "03:30",
+              gregorianDateLongIso8601: "2026-07-06T00:00:00+03:00",
+              isha: "22:14",
+              maghrib: "20:33",
+              sunrise: "05:21",
+            },
+          ],
+          success: true,
+        }),
+        { status: 200 },
+      );
+    }
+
     return new Response(JSON.stringify({ message: "not found" }), { status: 404 });
   }) as typeof fetch;
 }
@@ -208,7 +247,7 @@ test("production Awqat Salah sync writes to prayerTimes/current when source is a
   assert.equal(saved.today.asr, "17:10");
   assert.equal(saved.today.maghrib, "20:34");
   assert.equal(saved.today.isha, "22:15");
-  assert.equal(saved.tomorrow, null);
+  assert.equal(saved.tomorrow?.fajr, "03:30");
   assert.equal(saved.providerSource, "awqat-salah");
   assert.equal(saved.provider, "awqat");
   assert.equal(saved.source, "awqat");
@@ -226,7 +265,14 @@ test("production Awqat Salah sync writes to prayerTimes/current when source is a
       maghrib: "20:34",
       isha: "22:15",
     },
-    tomorrow: null,
+    tomorrow: {
+      fajr: "03:30",
+      sunrise: "05:21",
+      dhuhr: "13:03",
+      asr: "17:11",
+      maghrib: "20:33",
+      isha: "22:14",
+    },
   });
 
   assert.ok(logs.some((l) => l.includes("[Awqat Salah Sync] Completed successfully")), "should log sync completion");

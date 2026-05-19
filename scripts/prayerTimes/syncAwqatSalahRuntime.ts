@@ -75,6 +75,14 @@ function getSinglePrayerTimeRecord(payload: unknown, label: string) {
   return toAwqatPrayerTimeDayInput(payload[0], label);
 }
 
+function getTomorrowPrayerTimeRecord(payload: unknown) {
+  if (!Array.isArray(payload) || payload.length < 2) {
+    throw new Error("Awqat weekly payload did not contain tomorrow's record.");
+  }
+
+  return toAwqatPrayerTimeDayInput(payload[1], "weekly tomorrow");
+}
+
 interface FirestoreDocumentSnapshotLike {
   data: () => unknown;
   exists: boolean;
@@ -153,11 +161,14 @@ export async function runProductionAwqatSalahSync({
 
     await client.login(credentials);
     const dailyPayload = await client.getDailyPrayerTimes(LOCKED_CITY_ID);
+    const weeklyPayload = await client.getWeeklyPrayerTimes(LOCKED_CITY_ID);
     const today = getSinglePrayerTimeRecord(dailyPayload, "daily");
+    const tomorrow = getTomorrowPrayerTimeRecord(weeklyPayload);
 
     const nextValue = mapAwqatToPrayerTimesDocument({
       current,
       today,
+      tomorrow,
       fetchedAt: executionTime.toISOString(),
     });
 

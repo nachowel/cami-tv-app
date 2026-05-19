@@ -14,6 +14,7 @@ export interface AwqatPrayerTimeDayInput {
 export interface MapAwqatToPrayerTimesDocumentInput {
   current: PrayerTimesCurrent;
   today: AwqatPrayerTimeDayInput;
+  tomorrow?: AwqatPrayerTimeDayInput | null;
   fetchedAt: string;
 }
 
@@ -56,20 +57,24 @@ function normalizeAwqatGregorianDate(value: string): IsoDate {
   return `${match[1]}-${match[2]}-${match[3]}` as IsoDate;
 }
 
-function normalizeAwqatAutomaticSnapshot(today: AwqatPrayerTimeDayInput) {
+function normalizeAwqatAutomaticSnapshot(
+  today: AwqatPrayerTimeDayInput,
+  tomorrow?: AwqatPrayerTimeDayInput | null,
+) {
   return {
     date: normalizeAwqatGregorianDate(today.gregorianDateLongIso8601),
     today: normalizeAwqatPrayerTimesForDay(today),
-    tomorrow: null,
+    tomorrow: tomorrow ? normalizeAwqatPrayerTimesForDay(tomorrow) : null,
   };
 }
 
 export function mapAwqatToPrayerTimesDocument({
   current,
   today,
+  tomorrow,
   fetchedAt,
 }: MapAwqatToPrayerTimesDocumentInput): PrayerTimesCurrent {
-  const automaticTimes = normalizeAwqatAutomaticSnapshot(today);
+  const automaticTimes = normalizeAwqatAutomaticSnapshot(today, tomorrow);
   const providerAlias = toPrayerProviderAlias("awqat-salah");
 
   const nextValue: PrayerTimesCurrent = {
@@ -96,7 +101,7 @@ export function mapAwqatToPrayerTimesDocument({
     ...nextValue,
     date: automaticTimes.date,
     today: automaticTimes.today,
-    tomorrow: null,
+    tomorrow: automaticTimes.tomorrow,
     updated_at: fetchedAt,
     effectiveSource: "awqat-salah",
     manualOverride: false,

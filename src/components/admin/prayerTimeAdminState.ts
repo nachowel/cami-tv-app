@@ -31,6 +31,12 @@ export interface PrayerTimesAdminSourceSummary {
   statusTone: "info" | "success" | "warning" | null;
 }
 
+export interface PrayerTimeSourceSelectionUpdate {
+  nextPrayerTimesCurrent: PrayerTimesCurrent | null;
+  nextSettings: PrayerTimeSourceSettings;
+  userMessage: string;
+}
+
 const prayerTimeSourceLabels: Record<PrayerTimeSourceSetting, string> = {
   aladhan: "Aladhan API",
   "awqat-salah": "Awqat Salah API",
@@ -148,7 +154,7 @@ export function getPrayerTimesAdminSourceSummary(
       effectiveSourceLabel,
       manualOverrideWarning,
       restoreAutomaticActionLabel,
-      statusMessage: "Awqat Salah is configured, but displayed times are currently using the Aladhan fallback.",
+      statusMessage: "Automatic updates are currently unavailable. Awqat Salah is configured, but displayed times are currently using the Aladhan fallback.",
       statusTone: "warning",
     };
   }
@@ -160,7 +166,9 @@ export function getPrayerTimesAdminSourceSummary(
       effectiveSourceLabel,
       manualOverrideWarning,
       restoreAutomaticActionLabel,
-      statusMessage: "Awqat Salah API selected. Waiting for the next successful sync.",
+      statusMessage: current.automaticTimes
+        ? "Automatic sync is scheduled. Automatic provider selected, waiting for next sync."
+        : "Automatic sync is scheduled. Automatic provider selected, waiting for next sync.",
       statusTone: "info",
     };
   }
@@ -185,6 +193,46 @@ export function getPrayerTimesAdminSourceSummary(
     restoreAutomaticActionLabel,
     statusMessage: "Aladhan API remains supported internally, but the main admin source options are Manual Entry and Awqat Salah API.",
     statusTone: "warning",
+  };
+}
+
+export function createPrayerTimeSourceSelectionUpdate(input: {
+  currentPrayerTimes: PrayerTimesCurrent;
+  currentSettings: PrayerTimeSourceSettings;
+  nextSource: PrayerTimeSourceSetting;
+  updatedAt: string;
+  updatedBy: string;
+}): PrayerTimeSourceSelectionUpdate {
+  const nextSettings: PrayerTimeSourceSettings = {
+    ...input.currentSettings,
+    source: input.nextSource,
+    updatedAt: input.updatedAt,
+    updatedBy: input.updatedBy,
+  };
+
+  if (input.nextSource !== "awqat-salah") {
+    return {
+      nextPrayerTimesCurrent: null,
+      nextSettings,
+      userMessage: "Prayer time source saved.",
+    };
+  }
+
+  if (hasAutomaticAwqatData(input.currentPrayerTimes)) {
+    return {
+      nextPrayerTimesCurrent: restoreEffectivePrayerTimesFromAutomatic(
+        input.currentPrayerTimes,
+        input.updatedAt,
+      ),
+      nextSettings,
+      userMessage: "Awqat Salah source saved. Display switched back to automatic Awqat times.",
+    };
+  }
+
+  return {
+    nextPrayerTimesCurrent: null,
+    nextSettings,
+    userMessage: "Awqat Salah source saved. Automatic provider selected, waiting for next sync.",
   };
 }
 

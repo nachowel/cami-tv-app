@@ -16,6 +16,16 @@ const awqatToday = {
   gregorianDateLongIso8601: "2026-07-05T00:00:00+03:00",
 };
 
+const awqatTomorrow = {
+  fajr: "03:30",
+  sunrise: "05:21",
+  dhuhr: "13:03",
+  asr: "17:11",
+  maghrib: "20:33",
+  isha: "22:14",
+  gregorianDateLongIso8601: "2026-07-06T00:00:00+03:00",
+};
+
 
 
 const awqatWinterToday = {
@@ -210,4 +220,31 @@ test("Awqat mapper populates both top-level today and automaticTimes.today with 
   assert.deepEqual(result.today, expectedToday);
   assert.deepEqual(result.automaticTimes?.today, expectedToday);
   assert.deepEqual(result.today, result.automaticTimes?.today);
+});
+
+test("Awqat mapper writes automaticTimes.tomorrow and top-level tomorrow when next-day data is available", () => {
+  const result = mapAwqatToPrayerTimesDocument({
+    current: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "manual",
+      providerSource: null,
+      fetchedAt: null,
+      method: null,
+      automaticTimes: null,
+    },
+    fetchedAt,
+    today: awqatToday,
+    tomorrow: awqatTomorrow,
+  });
+
+  assert.equal(result.providerSource, "awqat-salah");
+  assert.equal(result.effectiveSource, "awqat-salah");
+  assert.equal(result.provider, "awqat");
+  assert.equal(result.source, "awqat");
+  assert.equal(result.manualOverride, false);
+  assert.equal(result.fetchedAt, fetchedAt);
+  assert.equal(result.updatedAt, fetchedAt);
+  assert.equal(result.automaticTimes?.tomorrow?.fajr, "03:30");
+  assert.equal(result.tomorrow?.fajr, "03:30");
 });
