@@ -12,3 +12,10 @@ test("admin routes rely on normal document scrolling while tv routes apply the v
   );
   assert.match(tvDisplayRouteSource, /useTvViewportLock/);
 });
+
+test("admin dashboard density styles are scoped away from the tv display", () => {
+  assert.match(globalsCss, /\.admin-dashboard/);
+  assert.match(globalsCss, /\.admin-dashboard :where\(input:not\(\[type="checkbox"\]\)/);
+  assert.match(globalsCss, /\.admin-dashboard :where\(button/);
+  assert.doesNotMatch(globalsCss, /body\s+input[\s\S]*min-height/);
+});

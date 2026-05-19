@@ -23,8 +23,8 @@ export function AdminSectionCard({
 
   return (
     <section
-      className={`scroll-mt-24 border border-slate-200 bg-white shadow-sm sm:scroll-mt-28 ${
-        isClosedMobileAccordion ? "rounded-xl p-0 sm:rounded-2xl sm:p-6" : "rounded-2xl p-4 sm:p-6"
+      className={`scroll-mt-24 border border-emerald-950/10 bg-white shadow-[0_12px_36px_rgba(15,23,42,0.06)] sm:scroll-mt-28 ${
+        isClosedMobileAccordion ? "rounded-xl p-0 sm:rounded-2xl sm:p-6" : "rounded-[1.1rem] p-3 sm:rounded-2xl sm:p-6"
       }`}
       id={id}
     >
@@ -32,19 +32,19 @@ export function AdminSectionCard({
         className={
           isClosedMobileAccordion
             ? "sm:border-b sm:border-slate-100 sm:pb-4"
-            : "border-b border-slate-100 pb-3 sm:pb-4"
+            : "border-b border-slate-100 pb-2 sm:pb-4"
         }
       >
         {isMobileAccordion ? (
           <button
             aria-controls={contentId}
             aria-expanded={mobileOpen}
-            className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 text-left sm:hidden"
+            className="flex min-h-[52px] w-full items-center justify-between gap-3 px-4 text-left transition sm:hidden"
             onClick={onMobileToggle}
             type="button"
           >
-            <span className="text-base font-bold text-slate-950">{title}</span>
-            <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+            <span className="text-[0.95rem] font-bold leading-5 text-slate-950">{title}</span>
+            <span className="shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-100">
               {mobileOpen ? "Kapat" : "Aç"}
             </span>
           </button>

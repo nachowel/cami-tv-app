@@ -18,6 +18,32 @@ test("admin panel blocks page-level horizontal overflow without duplicate mobile
   assert.doesNotMatch(adminPanelSource, /adminSectionNavItems\.map/);
 });
 
+test("authenticated admin uses a mobile-first shell with sticky status topbar", () => {
+  assert.match(adminPanelSource, /admin-dashboard/);
+  assert.match(adminPanelSource, /sticky top-0 z-30/);
+  assert.match(adminPanelSource, /connectionStatus\.label/);
+  assert.match(adminPanelSource, /saveState\.label/);
+});
+
+test("authenticated admin exposes fixed bottom tabs for primary mobile workflows", () => {
+  assert.match(adminPanelSource, /adminBottomNavItems/);
+  assert.match(adminPanelSource, /aria-label="Admin bottom navigation"/);
+  assert.match(adminPanelSource, /fixed inset-x-0 bottom-0 z-40/);
+  assert.match(adminPanelSource, /paddingBottom: "calc\(5\.5rem \+ env\(safe-area-inset-bottom\)\)"/);
+  for (const label of ["Home", "Content", "Prayer", "Slides", "Settings"]) {
+    assert.match(adminPanelSource, new RegExp(`label: "${label}"`));
+  }
+});
+
+test("mobile bottom tabs map to existing admin sections without introducing routes", () => {
+  assert.match(adminPanelSource, /targetSection: "announcements"/);
+  assert.match(adminPanelSource, /targetSection: "daily-content"/);
+  assert.match(adminPanelSource, /targetSection: "prayer-times"/);
+  assert.match(adminPanelSource, /targetSection: "donation-display"/);
+  assert.match(adminPanelSource, /targetSection: "language-settings"/);
+  assert.doesNotMatch(adminPanelSource, /react-router-dom[\s\S]*adminBottomNavItems/);
+});
+
 test("admin section cards expose anchor ids and scroll offset for mobile jump navigation", () => {
   assert.match(adminSectionCardSource, /id\?: string/);
   assert.match(adminSectionCardSource, /scroll-mt-24/);

@@ -57,3 +57,30 @@ textarea,
 select {
   font: inherit;
 }
+
+.admin-dashboard {
+  min-width: 320px;
+}
+
+@media (max-width: 639px) {
+  .admin-dashboard :where(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+    min-height: 2.625rem;
+    border-radius: 0.875rem;
+    background-color: #ffffff;
+    font-size: 0.875rem;
+  }
+
+  .admin-dashboard :where(textarea) {
+    min-height: 6.5rem;
+    line-height: 1.5;
+  }
+
+  .admin-dashboard :where(button) {
+    min-height: 2.625rem;
+  }
+
+  .admin-dashboard :where(label > span:first-child) {
+    font-size: 0.8rem;
+    line-height: 1.25rem;
+  }
+}
