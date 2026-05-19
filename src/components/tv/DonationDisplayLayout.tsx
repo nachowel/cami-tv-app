@@ -61,10 +61,12 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
       resolveDonationSlideshowImages({
         backgroundImageUrl: safeConfig.backgroundImageUrl,
         backgroundShowQr: safeConfig.showQrCode !== false,
+        backgroundSlideDurationSeconds: safeConfig.backgroundSlideDurationSeconds,
         slideImages: safeConfig.slideImages,
         slideImageUrls: safeConfig.slideImageUrls,
+        slideDurationSeconds: safeConfig.slideshowIntervalSeconds,
       }),
-    [safeConfig.backgroundImageUrl, safeConfig.showQrCode, safeConfig.slideImages, safeConfig.slideImageUrls],
+    [safeConfig.backgroundImageUrl, safeConfig.showQrCode, safeConfig.backgroundSlideDurationSeconds, safeConfig.slideImages, safeConfig.slideImageUrls, safeConfig.slideshowIntervalSeconds],
   );
 
   // ── Countdown state for QR ──
@@ -146,19 +148,27 @@ export function DonationDisplayLayout({ config }: DonationDisplayLayoutProps) {
       return;
     }
 
-    let cleanupPreload = preloadImage(availableSlideshowImages[(activeSlideIndex + 1) % availableSlideshowImages.length]?.imageUrl ?? "");
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let preloadCleanup: () => void = () => {};
 
-    const timer = setInterval(() => {
-      setActiveSlideIndex((current) => {
-        const nextIndex = (current + 1) % availableSlideshowImages.length;
-        return nextIndex;
-      });
-    }, slideshowIntervalSeconds * 1000);
+    function scheduleNextSlide() {
+      const currentSlide = availableSlideshowImages[activeSlideIndex % availableSlideshowImages.length];
+      const duration = currentSlide?.durationSeconds ?? slideshowIntervalSeconds;
+      const clampedDuration = Math.max(3, Math.min(300, duration));
+
+      preloadCleanup();
+      preloadCleanup = preloadImage(availableSlideshowImages[(activeSlideIndex + 1) % availableSlideshowImages.length]?.imageUrl ?? "");
+
+      timeoutId = setTimeout(() => {
+        setActiveSlideIndex((current) => (current + 1) % availableSlideshowImages.length);
+      }, clampedDuration * 1000);
+    }
+
+    scheduleNextSlide();
 
     return () => {
-      cleanupPreload();
-      cleanupPreload = () => {};
-      clearInterval(timer);
+      preloadCleanup();
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, [activeSlideIndex, availableSlideshowImages, slideshowEnabled, slideshowIntervalSeconds]);
 

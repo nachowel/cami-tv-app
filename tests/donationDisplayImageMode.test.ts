@@ -95,9 +95,22 @@ test("slideshow disabled keeps the single background image behavior", () => {
 });
 
 test("slideshow enabled rotates images on the configured interval", () => {
-  assert.ok(layoutSource.includes("setInterval"), "expected slideshow interval timer");
-  assert.ok(layoutSource.includes("slideshowIntervalSeconds * 1000"), "expected seconds-based interval");
+  assert.ok(layoutSource.includes("setTimeout"), "expected per-slide timeout instead of setInterval");
+  assert.ok(layoutSource.includes("slideshowIntervalSeconds"), "expected seconds-based interval");
   assert.ok(layoutSource.includes("setActiveSlideIndex"), "expected active slide index update");
+});
+
+test("admin has slideshow controls and preview navigation", () => {
+  assert.ok(adminSectionSource.includes("Enable slideshow"), "expected slideshow checkbox");
+  assert.ok(adminSectionSource.includes("Default slide duration seconds"), "expected default slide duration input");
+  assert.ok(adminSectionSource.includes("Main slide duration seconds"), "expected main slide duration input");
+  assert.ok(adminSectionSource.includes("Slide 1 of"), "expected slide count preview text");
+  assert.ok(adminSectionSource.includes("Previous"), "expected previous preview button");
+  assert.ok(adminSectionSource.includes("Next"), "expected next preview button");
+  assert.ok(adminSectionSource.includes("Add image URL"), "expected add slide button");
+  assert.ok(adminSectionSource.includes("Remove"), "expected remove slide button");
+  assert.ok(adminSectionSource.includes("Show QR on this slide"), "expected per-slide QR checkbox");
+  assert.ok(adminSectionSource.includes("Duration (seconds)"), "expected per-slide duration input");
 });
 
 test("slideshow skips failed images and preloads next image", () => {
@@ -130,11 +143,13 @@ test("motion disabled removes slideshow transition animation", () => {
 
 test("admin has slideshow controls and preview navigation", () => {
   assert.ok(adminSectionSource.includes("Enable slideshow"), "expected slideshow checkbox");
-  assert.ok(adminSectionSource.includes("Slide duration seconds"), "expected slide duration input");
+  assert.ok(adminSectionSource.includes("Default slide duration seconds"), "expected default slide duration input");
+  assert.ok(adminSectionSource.includes("Main slide duration seconds"), "expected main slide duration input");
   assert.ok(adminSectionSource.includes("Slide 1 of"), "expected slide count preview text");
   assert.ok(adminSectionSource.includes("Previous"), "expected previous preview button");
   assert.ok(adminSectionSource.includes("Next"), "expected next preview button");
   assert.ok(adminSectionSource.includes("Add image URL"), "expected add slide button");
   assert.ok(adminSectionSource.includes("Remove"), "expected remove slide button");
   assert.ok(adminSectionSource.includes("Show QR on this slide"), "expected per-slide QR checkbox");
+  assert.ok(adminSectionSource.includes("Duration (seconds)"), "expected per-slide duration input");
 });

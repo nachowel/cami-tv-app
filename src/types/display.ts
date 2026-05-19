@@ -149,6 +149,7 @@ export interface DonationDisplayConfig {
   motionEnabled: boolean;
   slideshowEnabled: boolean;
   slideshowIntervalSeconds: number;
+  backgroundSlideDurationSeconds?: number;
   slideImages: DonationSlideImage[];
   // Legacy field accepted when reading older production documents.
   slideImageUrls?: string[];
@@ -157,6 +158,7 @@ export interface DonationDisplayConfig {
 export interface DonationSlideImage {
   imageUrl: string;
   showQr: boolean;
+  durationSeconds?: number;
 }
 
 export interface TvWeather {

@@ -36,6 +36,7 @@ interface DonationDisplaySettingsSectionProps {
   motionEnabled: boolean;
   slideshowEnabled: boolean;
   slideshowIntervalSeconds: number;
+  backgroundSlideDurationSeconds: number;
   slideImages: DonationSlideImage[];
   slideImageUrlErrors?: Array<string | undefined>;
   slideImageUploadStates: DonationImageUploadState[];
@@ -58,8 +59,10 @@ interface DonationDisplaySettingsSectionProps {
   onMotionEnabledChange: (value: boolean) => void;
   onSlideshowEnabledChange: (value: boolean) => void;
   onSlideshowIntervalSecondsChange: (value: number) => void;
+  onBackgroundSlideDurationSecondsChange: (value: number) => void;
   onSlideImageUrlChange: (index: number, value: string) => void;
   onSlideImageShowQrChange: (index: number, value: boolean) => void;
+  onSlideImageDurationSecondsChange: (index: number, value: number) => void;
   onSlideImageUpload: (index: number, file: File) => void;
   onAddSlideImageUrl: () => void;
   onRemoveSlideImageUrl: (index: number) => void;
@@ -95,6 +98,7 @@ export function DonationDisplaySettingsSection({
   motionEnabled,
   slideshowEnabled,
   slideshowIntervalSeconds,
+  backgroundSlideDurationSeconds,
   slideImages,
   slideImageUrlErrors,
   slideImageUploadStates,
@@ -117,8 +121,10 @@ export function DonationDisplaySettingsSection({
   onMotionEnabledChange,
   onSlideshowEnabledChange,
   onSlideshowIntervalSecondsChange,
+  onBackgroundSlideDurationSecondsChange,
   onSlideImageUrlChange,
   onSlideImageShowQrChange,
+  onSlideImageDurationSecondsChange,
   onSlideImageUpload,
   onAddSlideImageUrl,
   onRemoveSlideImageUrl,
@@ -134,9 +140,11 @@ export function DonationDisplaySettingsSection({
       resolveDonationSlideshowImages({
         backgroundImageUrl,
         backgroundShowQr: showQrCode,
+        backgroundSlideDurationSeconds,
         slideImages,
+        slideDurationSeconds: slideshowIntervalSeconds,
       }),
-    [backgroundImageUrl, showQrCode, slideImages],
+    [backgroundImageUrl, showQrCode, backgroundSlideDurationSeconds, slideImages, slideshowIntervalSeconds],
   );
   const slideshowPreviewImageUrls = slideshowPreviewImages.map((slide) => slide.imageUrl);
   const previewImageUrl =
@@ -372,15 +380,29 @@ export function DonationDisplaySettingsSection({
           {slideshowEnabled && (
             <div className="sm:col-span-2">
               <label className="block">
-                <span className="text-sm font-semibold text-slate-700">Slide duration seconds</span>
+                <span className="text-sm font-semibold text-slate-700">Default slide duration seconds</span>
                 <input
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-700"
                   inputMode="numeric"
                   max={300}
-                  min={10}
-                  onChange={(event) => onSlideshowIntervalSecondsChange(clamp(Number(event.target.value), 10, 300))}
+                  min={3}
+                  onChange={(event) => onSlideshowIntervalSecondsChange(clamp(Number(event.target.value), 3, 300))}
                   type="number"
                   value={slideshowIntervalSeconds}
+                />
+                <p className="mt-1 text-xs text-slate-500">Fallback duration for slides without individual duration.</p>
+              </label>
+
+              <label className="mt-4 block">
+                <span className="text-sm font-semibold text-slate-700">Main slide duration seconds</span>
+                <input
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-700"
+                  inputMode="numeric"
+                  max={300}
+                  min={3}
+                  onChange={(event) => onBackgroundSlideDurationSecondsChange(clamp(Number(event.target.value), 3, 300))}
+                  type="number"
+                  value={backgroundSlideDurationSeconds}
                 />
               </label>
 
@@ -442,6 +464,18 @@ export function DonationDisplaySettingsSection({
                         type="checkbox"
                       />
                       <span className="text-sm font-semibold text-slate-700">Show QR on this slide</span>
+                    </label>
+                    <label className="mt-2 block">
+                      <span className="text-xs font-semibold text-slate-500">Duration (seconds)</span>
+                      <input
+                        className="mt-1 min-h-9 w-24 rounded-lg border border-slate-300 px-2 py-1 text-sm outline-none focus:border-emerald-700"
+                        inputMode="numeric"
+                        max={300}
+                        min={3}
+                        onChange={(event) => onSlideImageDurationSecondsChange(index, clamp(Number(event.target.value), 3, 300))}
+                        type="number"
+                        value={slideImage.durationSeconds ?? ""}
+                      />
                     </label>
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button

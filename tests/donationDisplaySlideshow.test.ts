@@ -16,8 +16,8 @@ test("normalizeSlideImages trims, removes empty rows, and deduplicates before sa
   ]);
 
   assert.deepEqual(result, [
-    { imageUrl: "https://example.org/one.jpg", showQr: false },
-    { imageUrl: "https://example.org/two.png", showQr: true },
+    { imageUrl: "https://example.org/one.jpg", showQr: false, durationSeconds: -1 },
+    { imageUrl: "https://example.org/two.png", showQr: true, durationSeconds: -1 },
   ]);
 });
 
@@ -30,8 +30,8 @@ test("normalizeSlideImages migrates legacy string entries to showQr true", () =>
   ]);
 
   assert.deepEqual(result, [
-    { imageUrl: "https://example.org/one.jpg", showQr: true },
-    { imageUrl: "https://example.org/two.png", showQr: true },
+    { imageUrl: "https://example.org/one.jpg", showQr: true, durationSeconds: -1 },
+    { imageUrl: "https://example.org/two.png", showQr: true, durationSeconds: -1 },
   ]);
 });
 
@@ -46,8 +46,8 @@ test("resolveDonationSlideshowImages includes background first with the global Q
   });
 
   assert.deepEqual(result, [
-    { imageUrl: "https://example.org/background.jpg", showQr: false },
-    { imageUrl: "https://example.org/extra.webp", showQr: true },
+    { imageUrl: "https://example.org/background.jpg", showQr: false, durationSeconds: 30 },
+    { imageUrl: "https://example.org/extra.webp", showQr: true, durationSeconds: 30 },
   ]);
 });
 
@@ -62,9 +62,9 @@ test("resolveDonationSlideshowImages includes background plus all slideImages fo
   });
 
   assert.deepEqual(result, [
-    { imageUrl: "https://example.org/background.jpg", showQr: true },
-    { imageUrl: "https://example.org/announcement.jpg", showQr: false },
-    { imageUrl: "https://example.org/donation.webp", showQr: true },
+    { imageUrl: "https://example.org/background.jpg", showQr: true, durationSeconds: 30 },
+    { imageUrl: "https://example.org/announcement.jpg", showQr: false, durationSeconds: 30 },
+    { imageUrl: "https://example.org/donation.webp", showQr: true, durationSeconds: 30 },
   ]);
 });
 
@@ -80,9 +80,9 @@ test("resolveDonationSlideshowImages falls back to legacy slideImageUrls when sl
   });
 
   assert.deepEqual(result, [
-    { imageUrl: "https://example.org/background.jpg", showQr: true },
-    { imageUrl: "https://example.org/legacy-one.jpg", showQr: true },
-    { imageUrl: "https://example.org/legacy-two.png", showQr: true },
+    { imageUrl: "https://example.org/background.jpg", showQr: true, durationSeconds: 30 },
+    { imageUrl: "https://example.org/legacy-one.jpg", showQr: true, durationSeconds: 30 },
+    { imageUrl: "https://example.org/legacy-two.png", showQr: true, durationSeconds: 30 },
   ]);
 });
 
@@ -98,8 +98,8 @@ test("resolveDonationSlideshowImages dedupes by imageUrl while preserving first 
   });
 
   assert.deepEqual(result, [
-    { imageUrl: "https://example.org/background.jpg", showQr: false },
-    { imageUrl: "https://example.org/announcement.jpg", showQr: false },
+    { imageUrl: "https://example.org/background.jpg", showQr: false, durationSeconds: 30 },
+    { imageUrl: "https://example.org/announcement.jpg", showQr: false, durationSeconds: 30 },
   ]);
 });
 
@@ -127,4 +127,63 @@ test("shouldShowQrForDonationSlide hides QR for announcement slides and shows it
     true,
   );
   assert.equal(shouldShowQrForDonationSlide(null), false);
+});
+
+test("background slide uses its own duration when provided", () => {
+  const result = resolveDonationSlideshowImages({
+    backgroundImageUrl: "https://example.org/background.jpg",
+    backgroundShowQr: true,
+    backgroundSlideDurationSeconds: 45,
+    slideImages: [],
+  });
+
+  assert.equal(result[0].durationSeconds, 45);
+});
+
+test("extra slides use per-slide duration when provided", () => {
+  const result = resolveDonationSlideshowImages({
+    backgroundImageUrl: "https://example.org/background.jpg",
+    backgroundShowQr: true,
+    slideDurationSeconds: 30,
+    slideImages: [
+      { imageUrl: "https://example.org/slide1.jpg", showQr: true, durationSeconds: 15 },
+      { imageUrl: "https://example.org/slide2.jpg", showQr: false, durationSeconds: 60 },
+    ],
+  });
+
+  assert.equal(result[0].durationSeconds, 30);
+  assert.equal(result[1].durationSeconds, 15);
+  assert.equal(result[2].durationSeconds, 60);
+});
+
+test("slides without duration fall back to global slideDurationSeconds", () => {
+  const result = resolveDonationSlideshowImages({
+    backgroundImageUrl: "https://example.org/background.jpg",
+    backgroundShowQr: true,
+    slideDurationSeconds: 25,
+    slideImages: [
+      { imageUrl: "https://example.org/slide1.jpg", showQr: true },
+      { imageUrl: "https://example.org/slide2.jpg", showQr: false },
+    ],
+  });
+
+  assert.equal(result[0].durationSeconds, 25);
+  assert.equal(result[1].durationSeconds, 25);
+  assert.equal(result[2].durationSeconds, 25);
+});
+
+test("invalid duration values are clamped to safe range", () => {
+  const result = resolveDonationSlideshowImages({
+    backgroundImageUrl: "https://example.org/background.jpg",
+    backgroundShowQr: true,
+    slideDurationSeconds: 500,
+    slideImages: [
+      { imageUrl: "https://example.org/slide1.jpg", showQr: true, durationSeconds: 0 },
+      { imageUrl: "https://example.org/slide2.jpg", showQr: false, durationSeconds: 2 },
+    ],
+  });
+
+  assert.equal(result[0].durationSeconds, 300);
+  assert.equal(result[1].durationSeconds, 3);
+  assert.equal(result[2].durationSeconds, 3);
 });

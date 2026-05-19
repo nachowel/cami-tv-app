@@ -39,6 +39,7 @@ import { normalizePrayerTimesCurrent } from "../utils/prayerTimeDocument.ts";
 import { normalizePrayerTimeSourceSettings } from "../utils/prayerTimeSourceSettings.ts";
 import {
   clampSlideshowIntervalSeconds,
+  clampSlideDurationSeconds,
   normalizeSlideImages,
 } from "../utils/donationDisplaySlideshow.ts";
 
@@ -254,6 +255,9 @@ export function normalizeDonationDisplayConfig(value: unknown): DonationDisplayC
     motionEnabled: typeof value.motionEnabled === "boolean" ? value.motionEnabled : DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled,
     slideshowEnabled: typeof value.slideshowEnabled === "boolean" ? value.slideshowEnabled : DEFAULT_DONATION_DISPLAY_CONFIG.slideshowEnabled,
     slideshowIntervalSeconds: clampSlideshowIntervalSeconds(value.slideshowIntervalSeconds),
+    backgroundSlideDurationSeconds: typeof value.backgroundSlideDurationSeconds === "number"
+      ? clampSlideDurationSeconds(value.backgroundSlideDurationSeconds)
+      : undefined,
     slideImages: normalizeSlideImages(Array.isArray(value.slideImages) ? value.slideImages : value.slideImageUrls),
   };
 }
@@ -450,7 +454,19 @@ export function createFirestoreReadWriteClient<
       });
     },
     async saveDonationDisplayConfig(config: DonationDisplayConfig) {
-      await executeWrite("saveDonationDisplayConfig", config, () => api.setDoc(getDonationDisplayRef(), config));
+      const firestoreValue: Record<string, unknown> = { ...config };
+      if (firestoreValue.backgroundSlideDurationSeconds === undefined) {
+        delete firestoreValue.backgroundSlideDurationSeconds;
+      }
+      if (Array.isArray(firestoreValue.slideImages)) {
+        for (let i = 0; i < (firestoreValue.slideImages as unknown[]).length; i++) {
+          const slide = (firestoreValue.slideImages as Array<Record<string, unknown>>)[i];
+          if (slide.durationSeconds === undefined) {
+            delete slide.durationSeconds;
+          }
+        }
+      }
+      await executeWrite("saveDonationDisplayConfig", config, () => api.setDoc(getDonationDisplayRef(), firestoreValue));
     },
     async fetchAnnouncements() {
       return executeRead<Announcement[]>("fetchAnnouncements", async () => {

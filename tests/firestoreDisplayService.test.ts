@@ -965,8 +965,25 @@ test("createFirestoreReadWriteClient saveDonationDisplayConfig writes to the cor
     message: "Save Message",
     cta: "Save CTA",
     qrLabel: "Save QR",
+    titleLine1: "Title1",
+    titleLine2: "Title2",
+    subtitle: "Subtitle",
+    mainMessage: "Main",
+    ctaText: "CTA",
     qrUrl: "https://save.com",
     backgroundImageUrl: "",
+    impactText: "",
+    showImpactText: false,
+    showQrCode: true,
+    displayMode: "component",
+    qrOverlayEnabled: true,
+    qrOverlayXPercent: 82,
+    qrOverlayYPercent: 67,
+    qrOverlaySizePercent: 12,
+    motionEnabled: true,
+    slideshowEnabled: false,
+    slideshowIntervalSeconds: 30,
+    slideImages: [],
   });
 
   assert.deepEqual(calls, [
@@ -987,8 +1004,25 @@ test("createFirestoreReadWriteClient saveDonationDisplayConfig writes to the cor
           message: "Save Message",
           cta: "Save CTA",
           qrLabel: "Save QR",
+          titleLine1: "Title1",
+          titleLine2: "Title2",
+          subtitle: "Subtitle",
+          mainMessage: "Main",
+          ctaText: "CTA",
           qrUrl: "https://save.com",
           backgroundImageUrl: "",
+          impactText: "",
+          showImpactText: false,
+          showQrCode: true,
+          displayMode: "component",
+          qrOverlayEnabled: true,
+          qrOverlayXPercent: 82,
+          qrOverlayYPercent: 67,
+          qrOverlaySizePercent: 12,
+          motionEnabled: true,
+          slideshowEnabled: false,
+          slideshowIntervalSeconds: 30,
+          slideImages: [],
         },
       },
     },
@@ -1031,8 +1065,25 @@ test("saveDonationDisplayConfig does not write undefined values to Firestore", a
     message: "",
     cta: "CTA",
     qrLabel: "Label",
+    titleLine1: "Title1",
+    titleLine2: "Title2",
+    subtitle: "Subtitle",
+    mainMessage: "Main",
+    ctaText: "CTA",
     qrUrl: "https://url.com",
     backgroundImageUrl: "",
+    impactText: "",
+    showImpactText: false,
+    showQrCode: true,
+    displayMode: "component",
+    qrOverlayEnabled: true,
+    qrOverlayXPercent: 82,
+    qrOverlayYPercent: 67,
+    qrOverlaySizePercent: 12,
+    motionEnabled: true,
+    slideshowEnabled: false,
+    slideshowIntervalSeconds: 30,
+    slideImages: [],
   });
 
   const setDocCall = calls.find((c) => c.kind === "setDoc");
@@ -1122,8 +1173,8 @@ test("normalizeDonationDisplayConfig preserves valid slideshow slide objects", (
   assert.equal(result.slideshowEnabled, true);
   assert.equal(result.slideshowIntervalSeconds, 45);
   assert.deepEqual(result.slideImages, [
-    { imageUrl: "https://example.com/one.jpg", showQr: false },
-    { imageUrl: "https://example.com/two.png", showQr: true },
+    { imageUrl: "https://example.com/one.jpg", showQr: false, durationSeconds: -1 },
+    { imageUrl: "https://example.com/two.png", showQr: true, durationSeconds: -1 },
   ]);
 });
 
@@ -1134,8 +1185,8 @@ test("normalizeDonationDisplayConfig migrates legacy slideImageUrls to slideImag
   });
 
   assert.deepEqual(result.slideImages, [
-    { imageUrl: "https://example.com/one.jpg", showQr: true },
-    { imageUrl: "https://example.com/two.png", showQr: true },
+    { imageUrl: "https://example.com/one.jpg", showQr: true, durationSeconds: -1 },
+    { imageUrl: "https://example.com/two.png", showQr: true, durationSeconds: -1 },
   ]);
 });
 
@@ -1147,6 +1198,6 @@ test("normalizeDonationDisplayConfig clamps slideshow interval and filters inval
   const high = normalizeDonationDisplayConfig({ slideshowIntervalSeconds: 500 });
 
   assert.equal(low.slideshowIntervalSeconds, 10);
-  assert.deepEqual(low.slideImages, [{ imageUrl: "https://example.com/one.jpg", showQr: false }]);
+  assert.deepEqual(low.slideImages, [{ imageUrl: "https://example.com/one.jpg", showQr: false, durationSeconds: -1 }]);
   assert.equal(high.slideshowIntervalSeconds, 300);
 });

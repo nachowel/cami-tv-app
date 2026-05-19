@@ -327,6 +327,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     qrOverlaySizePercent: number;
     motionEnabled: boolean;
     slideshowEnabled: boolean;
+    backgroundSlideDurationSeconds: number;
     slideshowIntervalSeconds: number;
     slideImages: DonationSlideImage[];
   }>({
@@ -347,6 +348,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     qrOverlaySizePercent: 12,
     motionEnabled: true,
     slideshowEnabled: false,
+    backgroundSlideDurationSeconds: 30,
     slideshowIntervalSeconds: 30,
     slideImages: [],
   });
@@ -679,6 +681,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           qrOverlaySizePercent: cfg.qrOverlaySizePercent,
           motionEnabled: cfg.motionEnabled,
           slideshowEnabled: cfg.slideshowEnabled,
+          backgroundSlideDurationSeconds: cfg.backgroundSlideDurationSeconds ?? 30,
           slideshowIntervalSeconds: cfg.slideshowIntervalSeconds,
           slideImages: cfg.slideImages,
         });
@@ -844,6 +847,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       qrOverlaySizePercent: DEFAULT_DONATION_DISPLAY_CONFIG.qrOverlaySizePercent,
       motionEnabled: DEFAULT_DONATION_DISPLAY_CONFIG.motionEnabled,
       slideshowEnabled: DEFAULT_DONATION_DISPLAY_CONFIG.slideshowEnabled,
+      backgroundSlideDurationSeconds: 30,
       slideshowIntervalSeconds: DEFAULT_DONATION_DISPLAY_CONFIG.slideshowIntervalSeconds,
       slideImages: DEFAULT_DONATION_DISPLAY_CONFIG.slideImages,
     });
@@ -879,6 +883,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
       qrOverlaySizePercent: donationDisplayDraft.qrOverlaySizePercent,
       motionEnabled: donationDisplayDraft.motionEnabled,
       slideshowEnabled: donationDisplayDraft.slideshowEnabled,
+      backgroundSlideDurationSeconds: donationDisplayDraft.backgroundSlideDurationSeconds,
       slideshowIntervalSeconds: clampSlideshowIntervalSeconds(donationDisplayDraft.slideshowIntervalSeconds),
       slideImages,
     };
@@ -926,6 +931,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
         qrOverlaySizePercent: result.valueToApply.qrOverlaySizePercent,
         motionEnabled: result.valueToApply.motionEnabled,
         slideshowEnabled: result.valueToApply.slideshowEnabled,
+        backgroundSlideDurationSeconds: result.valueToApply.backgroundSlideDurationSeconds ?? 30,
         slideshowIntervalSeconds: result.valueToApply.slideshowIntervalSeconds,
         slideImages: result.valueToApply.slideImages,
       });
@@ -1488,6 +1494,7 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
             slideImageUploadStates={slideImageUploadStates}
             slideshowEnabled={donationDisplayDraft.slideshowEnabled}
             slideshowIntervalSeconds={donationDisplayDraft.slideshowIntervalSeconds}
+            backgroundSlideDurationSeconds={donationDisplayDraft.backgroundSlideDurationSeconds}
             onAddSlideImageUrl={() => {
               setDonationDisplayDraft((prev) => ({ ...prev, slideImages: [...prev.slideImages, { imageUrl: "", showQr: true }] }));
               setSlideImageUploadStates((prev) => [...prev, createIdleDonationImageUploadState()]);
@@ -1539,10 +1546,15 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
               ...prev,
               slideImages: prev.slideImages.map((current, currentIndex) => currentIndex === index ? { ...current, showQr: value } : current),
             }))}
+            onSlideImageDurationSecondsChange={(index, value) => setDonationDisplayDraft((prev) => ({
+              ...prev,
+              slideImages: prev.slideImages.map((current, currentIndex) => currentIndex === index ? { ...current, durationSeconds: value } : current),
+            }))}
             onShowImpactTextChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, showImpactText: value }))}
             onShowQrCodeChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, showQrCode: value }))}
             onSlideshowEnabledChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, slideshowEnabled: value }))}
             onSlideshowIntervalSecondsChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, slideshowIntervalSeconds: value }))}
+            onBackgroundSlideDurationSecondsChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, backgroundSlideDurationSeconds: value }))}
             onPresetSelect={handleDonationDisplayPresetSelect}
             onSubmit={handleDonationDisplaySubmit}
             onSubtitleChange={(value) => setDonationDisplayDraft((prev) => ({ ...prev, subtitle: value }))}
