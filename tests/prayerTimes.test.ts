@@ -5,8 +5,10 @@ import type { PrayerTimesCurrent } from "../src/types/display.ts";
 import {
   formatCountdown,
   getCurrentAndNextPrayer,
+  getPrayerMomentForLondonDate,
   getPrayerScheduleForDate,
   parsePrayerTime,
+  resolvePrayerTimesForLondonDate,
 } from "../src/utils/prayerTimes.ts";
 
 const basePrayerTimes: PrayerTimesCurrent = {
@@ -106,4 +108,120 @@ test("formatCountdown returns zero-padded countdown text", () => {
   assert.equal(formatCountdown(486_000), "00:08:06");
   assert.equal(formatCountdown(((2 * 60 * 60) + (3 * 60) + 4) * 1000), "02:03:04");
   assert.equal(formatCountdown(-500), "00:00:00");
+});
+
+const septemberPrayerTimes: PrayerTimesCurrent = {
+  ...basePrayerTimes,
+  date: "2026-09-18",
+  today: {
+    fajr: "04:44",
+    sunrise: "06:33",
+    dhuhr: "13:00",
+    asr: "16:23",
+    maghrib: "19:17",
+    isha: "20:51",
+  },
+  tomorrow: {
+    fajr: "04:46",
+    sunrise: "06:34",
+    dhuhr: "12:59",
+    asr: "16:21",
+    maghrib: "19:15",
+    isha: "20:48",
+  },
+};
+
+test("23:59 Europe/London accepts prayer data for the current Gregorian day", () => {
+  const resolved = resolvePrayerTimesForLondonDate(
+    new Date("2026-09-18T22:59:00.000Z"),
+    septemberPrayerTimes,
+  );
+
+  assert.equal(resolved?.date, "2026-09-18");
+  assert.deepEqual(resolved?.today, septemberPrayerTimes.today);
+  assert.deepEqual(resolved?.tomorrow, septemberPrayerTimes.tomorrow);
+});
+
+test("00:01 Europe/London temporarily promotes a valid previous snapshot tomorrow", () => {
+  const resolved = resolvePrayerTimesForLondonDate(
+    new Date("2026-09-18T23:01:00.000Z"),
+    septemberPrayerTimes,
+  );
+
+  assert.equal(resolved?.date, "2026-09-19");
+  assert.deepEqual(resolved?.today, septemberPrayerTimes.tomorrow);
+  assert.equal(resolved?.tomorrow, null);
+});
+
+test("00:01 Europe/London rejects an older snapshot instead of promoting unrelated tomorrow data", () => {
+  const resolved = resolvePrayerTimesForLondonDate(
+    new Date("2026-09-18T23:01:00.000Z"),
+    {
+      ...septemberPrayerTimes,
+      date: "2026-09-17",
+    },
+  );
+
+  assert.equal(resolved, null);
+});
+
+test("stale prayer data produces no next prayer or countdown", () => {
+  const result = getPrayerMomentForLondonDate(
+    new Date("2026-09-18T12:00:00.000Z"),
+    {
+      ...septemberPrayerTimes,
+      date: "2026-07-19",
+    },
+  );
+
+  assert.equal(result, null);
+});
+
+test("midnight rollover remains valid on the GMT to BST transition date", () => {
+  const resolved = resolvePrayerTimesForLondonDate(
+    new Date("2026-03-29T00:01:00.000Z"),
+    {
+      ...septemberPrayerTimes,
+      date: "2026-03-28",
+    },
+  );
+
+  assert.equal(resolved?.date, "2026-03-29");
+  assert.deepEqual(resolved?.today, septemberPrayerTimes.tomorrow);
+});
+
+test("midnight rollover remains valid on the BST to GMT transition date", () => {
+  const resolved = resolvePrayerTimesForLondonDate(
+    new Date("2026-10-24T23:01:00.000Z"),
+    {
+      ...septemberPrayerTimes,
+      date: "2026-10-24",
+    },
+  );
+
+  assert.equal(resolved?.date, "2026-10-25");
+  assert.deepEqual(resolved?.today, septemberPrayerTimes.tomorrow);
+});
+
+test("next Fajr uses the BST offset after the GMT to BST transition", () => {
+  const result = getCurrentAndNextPrayer(
+    new Date("2026-03-28T23:30:00.000Z"),
+    {
+      ...septemberPrayerTimes,
+      date: "2026-03-28",
+      today: { ...septemberPrayerTimes.today, isha: "20:00" },
+      tomorrow: { ...septemberPrayerTimes.tomorrow, fajr: "04:30" },
+    },
+  );
+
+  assert.equal(result.nextPrayer.dateTime.toISOString(), "2026-03-29T03:30:00.000Z");
+});
+
+test("same-day Fajr uses the GMT offset after the BST to GMT transition", () => {
+  const schedule = getPrayerScheduleForDate(
+    new Date("2026-10-25T12:00:00.000Z"),
+    { ...septemberPrayerTimes.today, fajr: "05:30" },
+  );
+
+  assert.equal(schedule[0]?.dateTime.toISOString(), "2026-10-25T05:30:00.000Z");
 });

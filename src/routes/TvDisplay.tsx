@@ -54,15 +54,6 @@ export default function TvDisplay() {
     return stopSync;
   }, []);
 
-  useEffect(() => {
-    console.log("FULL PRAYER DATA", displayData.prayerTimes);
-    console.log("[PRAYER SOURCE]", displayData.prayerTimes.provider, displayData.prayerTimes.updatedAt);
-
-    if (!displayData.prayerTimes.provider) {
-      console.warn("[PRAYER SOURCE] provider missing on prayerTimes/current", displayData.prayerTimes);
-    }
-  }, [displayData.prayerTimes]);
-
   return (
     <TvDisplayLayout
       data={displayData}

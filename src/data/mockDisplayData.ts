@@ -8,6 +8,7 @@ export const mockDisplayData = {
     theme_mode: "auto",
     auto_theme_start: "08:00",
     auto_theme_end: "18:00",
+    hijriDateOffset: 0,
     updated_at: "2026-05-01T18:00:00Z",
   },
   donation: {

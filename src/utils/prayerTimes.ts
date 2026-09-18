@@ -1,4 +1,5 @@
 import type { PrayerTimesCurrent, PrayerTimesForDay, Time24Hour } from "../types/display";
+import { addIsoDateDays, getLondonIsoDate } from "./londonCalendar.ts";
 
 export type PrayerDisplayName = keyof PrayerTimesForDay;
 export type PrayerName = Exclude<PrayerDisplayName, "sunrise">;
@@ -177,6 +178,46 @@ export function getCurrentAndNextPrayer(now: Date, prayerTimes: PrayerTimesCurre
     nextPrayer,
     countdownMs: Math.max(0, nextPrayer.dateTime.getTime() - nowFlooredMs),
   };
+}
+
+export function resolvePrayerTimesForLondonDate(
+  now: Date,
+  prayerTimes: PrayerTimesCurrent,
+): PrayerTimesCurrent | null {
+  const londonToday = getLondonIsoDate(now);
+
+  if (prayerTimes.date === londonToday) {
+    return prayerTimes;
+  }
+
+  if (
+    prayerTimes.tomorrow &&
+    addIsoDateDays(prayerTimes.date, 1) === londonToday
+  ) {
+    return {
+      ...prayerTimes,
+      date: londonToday,
+      today: prayerTimes.tomorrow,
+      tomorrow: null,
+      automaticTimes: prayerTimes.automaticTimes
+        ? {
+            date: londonToday,
+            today: prayerTimes.tomorrow,
+            tomorrow: null,
+          }
+        : null,
+    };
+  }
+
+  return null;
+}
+
+export function getPrayerMomentForLondonDate(
+  now: Date,
+  prayerTimes: PrayerTimesCurrent,
+): PrayerMoment | null {
+  const resolvedPrayerTimes = resolvePrayerTimesForLondonDate(now, prayerTimes);
+  return resolvedPrayerTimes ? getCurrentAndNextPrayer(now, resolvedPrayerTimes) : null;
 }
 
 export function formatCountdown(ms: number) {

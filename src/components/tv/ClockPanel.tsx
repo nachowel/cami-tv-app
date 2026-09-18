@@ -1,13 +1,15 @@
 import type { TranslationKey } from "../../i18n/translations";
-import type { DisplayLanguage, TvWeather } from "../../types/display";
+import type { DisplayLanguage, HijriDateOffset, TvWeather } from "../../types/display";
 import { useTranslation } from "../../i18n/useTranslation";
 import { formatCountdown, type PrayerName } from "../../utils/prayerTimes";
+import { formatLondonHijriDate } from "../../utils/londonCalendar.ts";
 
 interface ClockPanelProps {
   language: DisplayLanguage;
   now: Date;
-  nextPrayerName: PrayerName;
-  countdownMs: number;
+  nextPrayerName: PrayerName | null;
+  countdownMs: number | null;
+  hijriDateOffset?: HijriDateOffset;
   weather: TvWeather;
   weatherColumnWidth: number;
 }
@@ -79,14 +81,22 @@ export function ClockPanel({
   now,
   nextPrayerName,
   countdownMs,
+  hijriDateOffset,
   weather,
   weatherColumnWidth,
 }: ClockPanelProps) {
   const { t } = useTranslation(language);
-  const nextPrayerLabel = t(prayerLabelKeys[nextPrayerName]);
-  const countdownText = localizeCountdown(formatCountdown(countdownMs), language);
-  const countdownLabel = getCountdownLabel(language, nextPrayerLabel);
+  const nextPrayerLabel = nextPrayerName ? t(prayerLabelKeys[nextPrayerName]) : "—";
+  const countdownText = countdownMs == null
+    ? "--:--:--"
+    : localizeCountdown(formatCountdown(countdownMs), language);
+  const countdownLabel = nextPrayerName
+    ? getCountdownLabel(language, nextPrayerLabel)
+    : language === "tr"
+      ? "Namaz vakitleri kullanılamıyor"
+      : "Prayer times unavailable";
   const dateStr = formatClockDate(now, language);
+  const hijriDateStr = formatLondonHijriDate(now, hijriDateOffset);
 
   return (
     <section className="flex h-full min-h-0 min-w-0 flex-col items-center justify-start overflow-hidden rounded-2xl bg-[#fffdf7] px-[clamp(0.4rem,0.65vw,0.72rem)] pb-[clamp(0.25rem,0.4vw,0.45rem)] pt-[clamp(0.16rem,0.32vw,0.32rem)] text-center">
@@ -95,7 +105,7 @@ export function ClockPanel({
           {dateStr}
         </p>
         <p className="mt-[0.04rem] text-[clamp(0.66rem,0.96vw,1.08rem)] font-medium text-slate-600">
-          {t("hijri")}
+          {hijriDateStr}
         </p>
       </div>
 

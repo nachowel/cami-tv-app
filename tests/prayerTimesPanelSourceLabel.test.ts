@@ -13,16 +13,14 @@ const tvDisplaySource = readFileSync(
 );
 
 test("PrayerTimesPanel derives the automatic provider label from Firestore prayer data", () => {
-  assert.match(prayerTimesPanelSource, /const provider = activePrayerTimes\.provider/);
-  assert.match(prayerTimesPanelSource, /UI SOURCE DEBUG/);
+  assert.match(prayerTimesPanelSource, /const provider = prayerTimes\.provider/);
+  assert.doesNotMatch(prayerTimesPanelSource, /UI SOURCE DEBUG/);
   assert.doesNotMatch(prayerTimesPanelSource, /prayerTimes\.providerSource/);
   assert.doesNotMatch(prayerTimesPanelSource, /prayerTimes\.effectiveSource === "manual"/);
 });
 
-test("TvDisplay logs the active prayer source from Firestore data", () => {
-  assert.match(tvDisplaySource, /FULL PRAYER DATA/);
-  assert.match(tvDisplaySource, /\[PRAYER SOURCE\]/);
-  assert.match(tvDisplaySource, /displayData\.prayerTimes\.provider/);
-  assert.match(tvDisplaySource, /displayData\.prayerTimes\.updatedAt/);
-  assert.match(tvDisplaySource, /provider missing on prayerTimes\/current/);
+test("TvDisplay does not emit prayer documents or provider diagnostics to the production console", () => {
+  assert.doesNotMatch(tvDisplaySource, /FULL PRAYER DATA/);
+  assert.doesNotMatch(tvDisplaySource, /\[PRAYER SOURCE\]/);
+  assert.doesNotMatch(tvDisplaySource, /provider missing on prayerTimes\/current/);
 });

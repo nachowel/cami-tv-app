@@ -95,6 +95,7 @@ import {
   normalizeSlideImages,
 } from "../utils/donationDisplaySlideshow.ts";
 import { createDefaultPrayerTimeSourceSettings } from "../utils/prayerTimeSourceSettings.ts";
+import { normalizeHijriDateOffset } from "../utils/londonCalendar.ts";
 
 type SectionStatusKey =
   | "language"
@@ -707,6 +708,29 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
     const nextSettings: DisplaySettings = {
       ...displaySettings,
       language: nextLanguage,
+      updated_at: new Date().toISOString(),
+    };
+
+    updateSectionStatus("language", createSavingStatus("Kaydediliyor..."));
+
+    void commitAdminSectionSave({
+      isAuthenticated,
+      nextValue: nextSettings,
+      persist: saveDisplaySettings,
+      successMessage: "Kaydedildi.",
+    }).then((result) => {
+      if (result.valueToApply) {
+        setDisplaySettings(result.valueToApply);
+      }
+
+      updateSectionStatus("language", result.status);
+    });
+  }
+
+  function handleHijriDateOffsetChange(nextOffset: NonNullable<DisplaySettings["hijriDateOffset"]>) {
+    const nextSettings: DisplaySettings = {
+      ...displaySettings,
+      hijriDateOffset: nextOffset,
       updated_at: new Date().toISOString(),
     };
 
@@ -1456,10 +1480,12 @@ function AdminPanelContent({ authError, onLogout, userEmail, userId }: AdminPane
           />
 
           <LanguageSettingsSection
+            hijriDateOffset={normalizeHijriDateOffset(displaySettings.hijriDateOffset)}
             id="language-settings"
             language={displaySettings.language}
             mobileOpen={activeMobileSection === "language-settings"}
             onChange={handleLanguageChange}
+            onHijriDateOffsetChange={handleHijriDateOffsetChange}
             onMobileToggle={() => setActiveMobileSection("language-settings")}
             status={statusBySection.language}
           />

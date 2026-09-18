@@ -18,6 +18,10 @@ test("scheduled prayer time sync delegates prayerTimes/current to the shared syn
   const calls: Array<Record<string, unknown>> = [];
   const handler = createScheduledPrayerTimeSyncHandler({
     db: db as never,
+    readPrayerTimeSourceSettings: async () => ({
+      source: "aladhan",
+      updatedAt: null,
+    }),
     readRuntimeOptions: () => ({
       offsets: {
         fajr: 0,
@@ -61,4 +65,40 @@ test("scheduled prayer time sync delegates prayerTimes/current to the shared syn
   });
   assert.equal(typeof calls[0]?.logInfo, "function");
   assert.equal(typeof calls[0]?.logError, "function");
+});
+
+test("scheduled prayer sync dispatches the configured Awqat source with secret credentials", async () => {
+  const db = { kind: "firestore" };
+  const awqatCalls: Array<Record<string, unknown>> = [];
+  let aladhanCalls = 0;
+  const handler = createScheduledPrayerTimeSyncHandler({
+    db: db as never,
+    getAwqatCredentials: () => ({
+      username: "firebase-secret-user",
+      password: "firebase-secret-password",
+    }),
+    readPrayerTimeSourceSettings: async () => ({
+      source: "awqat-salah",
+      updatedAt: null,
+    }),
+    runAwqatSalahSync: async (options) => {
+      awqatCalls.push(options as Record<string, unknown>);
+      return mockDisplayData.prayerTimes;
+    },
+    runPrayerTimeSync: async () => {
+      aladhanCalls += 1;
+      return mockDisplayData.prayerTimes;
+    },
+  });
+
+  await handler({} as never);
+
+  assert.equal(aladhanCalls, 0);
+  assert.equal(awqatCalls.length, 1);
+  assert.equal(awqatCalls[0]?.db, db);
+  const env = awqatCalls[0]?.env as NodeJS.ProcessEnv;
+  assert.equal(env.AWQAT_SALAH_PASSWORD, "firebase-secret-password");
+  assert.equal(env.AWQAT_SALAH_USERNAME, "firebase-secret-user");
+  assert.equal(typeof awqatCalls[0]?.logInfo, "function");
+  assert.equal(typeof awqatCalls[0]?.logError, "function");
 });

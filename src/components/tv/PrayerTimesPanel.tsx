@@ -4,11 +4,11 @@ import type { TranslationKey } from "../../i18n/translations";
 import type { PrayerName } from "../../utils/prayerTimes";
 
 interface PrayerTimesPanelProps {
-  prayerTimes: PrayerTimesCurrent;
+  prayerTimes: PrayerTimesCurrent | null;
   language: DisplayLanguage;
-  highlightedPrayer: PrayerName;
-  lastSuccessfulPrayerTimes?: PrayerTimesCurrent | null;
+  highlightedPrayer: PrayerName | null;
   status?: "loading" | "ok" | "error";
+  usingLastKnown?: boolean;
 }
 
 const prayerLabels: Array<[keyof PrayerTimesForDay, TranslationKey]> = [
@@ -23,32 +23,22 @@ const prayerLabels: Array<[keyof PrayerTimesForDay, TranslationKey]> = [
 const prayerIcons = ["☾", "☀", "☀", "◒", "◐", "☾"];
 
 function formatUpdateTime(isoDateTime: string): string {
-  const match = isoDateTime.match(/T(\d{2}:\d{2}):/);
-  return match ? match[1] : "";
+  const parsed = new Date(isoDateTime);
+  return Number.isNaN(parsed.getTime())
+    ? ""
+    : new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        hour12: false,
+        minute: "2-digit",
+        timeZone: "Europe/London",
+      }).format(parsed);
 }
 
-function getLondonTodayIsoDate(): string {
-  const formatter = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
-  const parts = formatter.formatToParts(new Date());
-  const year = parts.find((p) => p.type === "year")!.value;
-  const month = parts.find((p) => p.type === "month")!.value;
-  const day = parts.find((p) => p.type === "day")!.value;
-  return `${year}-${month}-${day}`;
-}
-
-export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer, lastSuccessfulPrayerTimes, status }: PrayerTimesPanelProps) {
+export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer, status, usingLastKnown }: PrayerTimesPanelProps) {
   const { t } = useTranslation(language);
 
-  const hasLastKnown = status === "error" && lastSuccessfulPrayerTimes != null;
-  const isStale = hasLastKnown && lastSuccessfulPrayerTimes.date !== getLondonTodayIsoDate();
-  const isUnavailable = status === "error" && lastSuccessfulPrayerTimes == null;
-
-  if (isUnavailable) {
+  if (!prayerTimes) {
+    const isReadFailure = status === "error";
     return (
       <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-emerald-900/10 bg-white px-[clamp(0.6rem,0.95vw,1.15rem)] py-[clamp(0.55rem,0.85vw,0.95rem)] shadow-[0_14px_40px_rgba(21,54,35,0.13)]">
         <p className="text-center text-[clamp(0.96rem,1.7vw,1.78rem)] font-black uppercase tracking-[0.04em] text-emerald-800">
@@ -58,41 +48,20 @@ export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer, las
         <div className="flex flex-1 flex-col items-center justify-center gap-3">
           <div className="text-[clamp(1.5rem,2.5vw,2.5rem)] text-slate-300">☾</div>
           <p className="text-center text-[clamp(0.8rem,1.2vw,1.2rem)] font-medium leading-snug text-slate-500">
-            Prayer times temporarily unavailable
+            {isReadFailure ? "Prayer times temporarily unavailable" : "Prayer times need updating"}
           </p>
+          {!isReadFailure ? (
+            <p className="text-center text-[clamp(0.7rem,1vw,1rem)] font-medium leading-snug text-slate-400">
+              Please check the admin sync.
+            </p>
+          ) : null}
         </div>
       </section>
     );
   }
 
-  if (isStale) {
-    return (
-      <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-emerald-900/10 bg-white px-[clamp(0.6rem,0.95vw,1.15rem)] py-[clamp(0.55rem,0.85vw,0.95rem)] shadow-[0_14px_40px_rgba(21,54,35,0.13)]">
-        <p className="text-center text-[clamp(0.96rem,1.7vw,1.78rem)] font-black uppercase tracking-[0.04em] text-emerald-800">
-          {t("prayer_times")}
-        </p>
-        <div className="mx-auto mt-[clamp(0.22rem,0.38vw,0.45rem)] h-px w-[90%] bg-slate-200" />
-        <div className="flex flex-1 flex-col items-center justify-center gap-3">
-          <div className="text-[clamp(1.5rem,2.5vw,2.5rem)] text-slate-300">☾</div>
-          <p className="text-center text-[clamp(0.8rem,1.2vw,1.2rem)] font-medium leading-snug text-slate-500">
-            Prayer times need updating
-          </p>
-          <p className="text-center text-[clamp(0.7rem,1vw,1rem)] font-medium leading-snug text-slate-400">
-            Please check the admin sync.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
-  const activePrayerTimes = hasLastKnown ? lastSuccessfulPrayerTimes : prayerTimes;
-  const today = activePrayerTimes.today;
-  const provider = activePrayerTimes.provider;
-
-  console.log("UI SOURCE DEBUG", {
-    provider: prayerTimes.provider,
-    effectiveSource: prayerTimes.effectiveSource
-  });
+  const today = prayerTimes.today;
+  const provider = prayerTimes.provider;
 
   let label = "";
   let activeSource = "";
@@ -109,7 +78,9 @@ export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer, las
   }
 
   const sourceLabel = activeSource === "manual" ? "Geçerli mod: Manual" : `Geçerli mod: ${label}`;
-  const updateTime = formatUpdateTime(prayerTimes.updated_at);
+  const updateTime = formatUpdateTime(
+    prayerTimes.fetchedAt ?? prayerTimes.updatedAt ?? prayerTimes.updated_at,
+  );
 
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border border-emerald-900/10 bg-white px-[clamp(0.6rem,0.95vw,1.15rem)] py-[clamp(0.55rem,0.85vw,0.95rem)] shadow-[0_14px_40px_rgba(21,54,35,0.13)]">
@@ -148,7 +119,7 @@ export function PrayerTimesPanel({ prayerTimes, language, highlightedPrayer, las
           );
         })}
       </div>
-      {hasLastKnown ? (
+      {usingLastKnown ? (
         <p className="mt-[clamp(0.1rem,0.18vw,0.26rem)] truncate text-center text-[clamp(0.42rem,0.58vw,0.6rem)] font-medium tracking-wide text-amber-600">
           Prayer times may be temporarily outdated
         </p>

@@ -42,3 +42,10 @@ test("before the first prayer the highlight falls back to the next prayer", () =
   assert.equal(result.highlightedPrayer, "fajr");
   assert.equal(result.nextPrayerName, "fajr");
 });
+
+test("unavailable prayer data produces no highlighted or next prayer state", () => {
+  assert.deepEqual(resolvePrayerPanelState(null), {
+    highlightedPrayer: null,
+    nextPrayerName: null,
+  });
+});

@@ -3,9 +3,20 @@ import assert from "node:assert/strict";
 
 import { mockDisplayData } from "../src/data/mockDisplayData.ts";
 import {
+  getPrayerTimesUpdatedAt,
   normalizePrayerTimesCurrent,
   restoreEffectivePrayerTimesFromAutomatic,
 } from "../src/utils/prayerTimeDocument.ts";
+
+test("provider fetchedAt is the authoritative freshness timestamp", () => {
+  const result = getPrayerTimesUpdatedAt({
+    fetchedAt: "2026-07-19T04:20:05.755Z",
+    updatedAt: "2026-09-18T18:00:30.631Z",
+    updated_at: "2026-09-18T18:00:30.631Z",
+  });
+
+  assert.equal(result, "2026-07-19T04:20:05.755Z");
+});
 
 test("normalizePrayerTimesCurrent protects legacy documents by default", () => {
   const result = normalizePrayerTimesCurrent({
@@ -171,6 +182,9 @@ test("restoreEffectivePrayerTimesFromAutomatic copies automatic times immediatel
       providerSource: "awqat-salah",
       provider: "awqat",
       source: "awqat",
+      fetchedAt: "2026-05-02T03:40:00.000Z",
+      updated_at: "2026-05-02T03:40:05.000Z",
+      updatedAt: "2026-05-02T03:40:05.000Z",
       automaticTimes: {
         date: "2026-05-02",
         today: {
@@ -191,8 +205,9 @@ test("restoreEffectivePrayerTimesFromAutomatic copies automatic times immediatel
   assert.equal(result.effectiveSource, "awqat-salah");
   assert.equal(result.date, "2026-05-02");
   assert.equal(result.today.fajr, "04:55");
-  assert.equal(result.updated_at, "2026-05-02T19:00:00.000Z");
-  assert.equal(result.updatedAt, "2026-05-02T19:00:00.000Z");
+  assert.equal(result.fetchedAt, "2026-05-02T03:40:00.000Z");
+  assert.equal(result.updated_at, "2026-05-02T03:40:05.000Z");
+  assert.equal(result.updatedAt, "2026-05-02T03:40:05.000Z");
   assert.equal(result.provider, "awqat");
   assert.equal(result.source, "awqat");
 });

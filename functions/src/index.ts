@@ -2,6 +2,7 @@ import { getApps, initializeApp } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { HttpsError, onCall, type CallableRequest } from "firebase-functions/https";
 import { onSchedule } from "firebase-functions/v2/scheduler";
+import { defineSecret } from "firebase-functions/params";
 import { getFirestore } from "firebase-admin/firestore";
 import {
   AdminClaimFunctionError,
@@ -14,6 +15,8 @@ import {
 } from "./scheduledPrayerTimeSync.ts";
 
 const adminApp = getApps()[0] ?? initializeApp();
+const awqatSalahUsername = defineSecret("AWQAT_SALAH_USERNAME");
+const awqatSalahPassword = defineSecret("AWQAT_SALAH_PASSWORD");
 
 function createAuthGateway() {
   const auth = getAuth(adminApp);
@@ -93,9 +96,16 @@ export const removeAdminClaim = onCall(async (request) => {
 export const scheduledPrayerTimeSync = onSchedule(
   {
     schedule: SCHEDULED_PRAYER_TIME_SYNC_SCHEDULE,
+    secrets: [awqatSalahUsername, awqatSalahPassword],
     timeZone: SCHEDULED_PRAYER_TIME_SYNC_TIME_ZONE,
   },
   createScheduledPrayerTimeSyncHandler({
     db: getFirestore(adminApp),
+    getAwqatCredentials() {
+      return {
+        password: awqatSalahPassword.value(),
+        username: awqatSalahUsername.value(),
+      };
+    },
   }),
 );

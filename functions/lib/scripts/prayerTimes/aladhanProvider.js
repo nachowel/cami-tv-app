@@ -1,3 +1,4 @@
+import { addIsoDateDays, getIsoDateInTimeZone } from "../../src/utils/londonCalendar.js";
 function pad(value) {
     return value.toString().padStart(2, "0");
 }
@@ -7,25 +8,8 @@ function toTime24Hour(value) {
 function toIsoDateValue(value) {
     return value;
 }
-function addDays(date, days) {
-    const nextDate = new Date(date);
-    nextDate.setUTCDate(nextDate.getUTCDate() + days);
-    return nextDate;
-}
-function formatDateForTimezone(date, timezone) {
-    const formatter = new Intl.DateTimeFormat("en-GB", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-        timeZone: timezone,
-    });
-    const parts = formatter.formatToParts(date);
-    const day = parts.find((part) => part.type === "day")?.value;
-    const month = parts.find((part) => part.type === "month")?.value;
-    const year = parts.find((part) => part.type === "year")?.value;
-    if (!day || !month || !year) {
-        throw new Error(`Unable to format date for timezone: ${timezone}`);
-    }
+function formatIsoDateForProvider(isoDate) {
+    const [year, month, day] = isoDate.split("-");
     return `${day}-${month}-${year}`;
 }
 function toIsoDate(gregorianDate) {
@@ -100,8 +84,10 @@ async function fetchTimingsByCity(config, date, fetchImpl) {
 export function createAladhanProvider() {
     return {
         async fetchAutomaticTimes(config, offsets, fetchImpl = fetch, now = new Date()) {
-            const todayDate = formatDateForTimezone(now, config.timezone);
-            const tomorrowDate = formatDateForTimezone(addDays(now, 1), config.timezone);
+            const todayIsoDate = getIsoDateInTimeZone(now, config.timezone);
+            const tomorrowIsoDate = addIsoDateDays(todayIsoDate, 1);
+            const todayDate = formatIsoDateForProvider(todayIsoDate);
+            const tomorrowDate = formatIsoDateForProvider(tomorrowIsoDate);
             const [todayResponse, tomorrowResponse] = await Promise.all([
                 fetchTimingsByCity(config, todayDate, fetchImpl),
                 fetchTimingsByCity(config, tomorrowDate, fetchImpl),

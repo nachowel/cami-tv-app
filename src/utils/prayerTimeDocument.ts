@@ -97,7 +97,7 @@ function normalizeProviderSource(
 }
 
 export function getPrayerTimesUpdatedAt(value: Pick<PrayerTimesCurrent, "updatedAt" | "updated_at" | "fetchedAt">) {
-  return value.updatedAt ?? value.updated_at ?? value.fetchedAt;
+  return value.fetchedAt ?? value.updatedAt ?? value.updated_at;
 }
 
 function resolvePreferredAutomaticSource(
@@ -219,7 +219,7 @@ export function normalizePrayerTimesCurrent(
 
 export function restoreEffectivePrayerTimesFromAutomatic(
   current: PrayerTimesCurrent,
-  updatedAt: string,
+  _updatedAt: string,
 ): PrayerTimesCurrent {
   if (!current.automaticTimes) {
     return {
@@ -236,8 +236,6 @@ export function restoreEffectivePrayerTimesFromAutomatic(
     date: current.automaticTimes.date,
     today: current.automaticTimes.today,
     tomorrow: current.automaticTimes.tomorrow,
-    updated_at: updatedAt,
-    updatedAt,
     effectiveSource: restoredSource,
     provider: providerAlias,
     source: providerAlias,

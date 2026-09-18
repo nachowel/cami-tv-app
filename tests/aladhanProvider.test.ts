@@ -147,3 +147,57 @@ test("createAladhanProvider fetches today and tomorrow using timingsByCity with 
   assert.equal(urls[1]?.includes("/v1/timingsByCity/03-05-2026?"), true);
   assert.equal(result.automaticTimes.date, "2026-05-02");
 });
+
+async function captureAladhanRequestDates(now: Date) {
+  const urls: string[] = [];
+  const provider = createAladhanProvider();
+
+  await provider.fetchAutomaticTimes(
+    {
+      city: "London",
+      country: "United Kingdom",
+      timezone: "Europe/London",
+      method: 13,
+    },
+    { fajr: 0, sunrise: 0, dhuhr: 0, asr: 0, maghrib: 0, isha: 0 },
+    (async (input: string | URL | Request) => {
+      const url = String(input);
+      urls.push(url);
+      const date = /timingsByCity\/(\d{2}-\d{2}-\d{4})/.exec(url)?.[1];
+
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            date: { gregorian: { date } },
+            timings: {
+              Fajr: "04:31",
+              Sunrise: "06:15",
+              Dhuhr: "12:56",
+              Asr: "16:43",
+              Maghrib: "20:22",
+              Isha: "21:50",
+            },
+          },
+        }),
+      } as Response;
+    }) as typeof fetch,
+    now,
+  );
+
+  return urls.map((url) => /timingsByCity\/(\d{2}-\d{2}-\d{4})/.exec(url)?.[1]);
+}
+
+test("Aladhan fallback requests the next London calendar day across GMT to BST", async () => {
+  assert.deepEqual(
+    await captureAladhanRequestDates(new Date("2026-03-28T23:30:00.000Z")),
+    ["28-03-2026", "29-03-2026"],
+  );
+});
+
+test("Aladhan fallback requests the next London calendar day across BST to GMT", async () => {
+  assert.deepEqual(
+    await captureAladhanRequestDates(new Date("2026-10-24T23:30:00.000Z")),
+    ["25-10-2026", "26-10-2026"],
+  );
+});

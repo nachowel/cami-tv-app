@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import type { DisplayData, PrayerTimesCurrent, TvWeather } from "../../types/display";
 import { useTranslation } from "../../i18n/useTranslation";
 import { createUnavailableTvWeather } from "../../services/weatherService";
-import { getCurrentAndNextPrayer } from "../../utils/prayerTimes";
+import {
+  getCurrentAndNextPrayer,
+  resolvePrayerTimesForLondonDate,
+} from "../../utils/prayerTimes";
 import { AnnouncementBar } from "./AnnouncementBar";
 import { AutoScrollingText } from "./AutoScrollingText";
 import { ClockPanel } from "./ClockPanel";
@@ -27,7 +30,18 @@ export function TvDisplayLayout({ data, lastSuccessfulPrayerTimes, prayerTimesSt
   const [now, setNow] = useState(() => new Date());
   const [weather, setWeather] = useState<TvWeather>(() => createUnavailableTvWeather());
   const viewportLayout = useTvViewportLayout();
-  const prayerMoment = getCurrentAndNextPrayer(now, data.prayerTimes);
+  const resolvedLivePrayerTimes = resolvePrayerTimesForLondonDate(now, data.prayerTimes);
+  const resolvedLastSuccessfulPrayerTimes = lastSuccessfulPrayerTimes
+    ? resolvePrayerTimesForLondonDate(now, lastSuccessfulPrayerTimes)
+    : null;
+  const usingLastKnownPrayerTimes =
+    prayerTimesStatus === "error" && resolvedLastSuccessfulPrayerTimes != null;
+  const activePrayerTimes = prayerTimesStatus === "error"
+    ? resolvedLastSuccessfulPrayerTimes
+    : resolvedLivePrayerTimes;
+  const prayerMoment = activePrayerTimes
+    ? getCurrentAndNextPrayer(now, activePrayerTimes)
+    : null;
   const prayerPanelState = resolvePrayerPanelState(prayerMoment);
 
   useEffect(() => {
@@ -76,7 +90,8 @@ export function TvDisplayLayout({ data, lastSuccessfulPrayerTimes, prayerTimesSt
             language={language}
             now={now}
             nextPrayerName={prayerPanelState.nextPrayerName}
-            countdownMs={prayerMoment.countdownMs}
+            countdownMs={prayerMoment?.countdownMs ?? null}
+            hijriDateOffset={data.settings.hijriDateOffset}
             weather={weather}
             weatherColumnWidth={viewportLayout.weatherColumnWidth}
           />
@@ -85,11 +100,11 @@ export function TvDisplayLayout({ data, lastSuccessfulPrayerTimes, prayerTimesSt
 
         <aside className="min-h-0">
           <PrayerTimesPanel
-            prayerTimes={data.prayerTimes}
+            prayerTimes={activePrayerTimes}
             language={language}
             highlightedPrayer={prayerPanelState.highlightedPrayer}
-            lastSuccessfulPrayerTimes={lastSuccessfulPrayerTimes}
             status={prayerTimesStatus}
+            usingLastKnown={usingLastKnownPrayerTimes}
           />
         </aside>
 

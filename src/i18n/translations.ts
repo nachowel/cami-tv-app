@@ -11,7 +11,6 @@ export const translations = {
     daily_ayah_translation:
       "If you avoid the major sins forbidden to you, We will remove your lesser sins and admit you to a noble entrance.",
     donation_support_message: "Your donations help keep our mosque services running.",
-    hijri: "13 Dhul Qadah 1447",
     islamic_community: "Islamic Community",
     millennium_centre: "Millennium Centre",
     next_prayer: "Next Prayer",
@@ -51,7 +50,6 @@ export const translations = {
     daily_ayah_translation:
       "Eğer size yasaklanan günahların büyüklerinden kaçınırsanız, sizin küçük günahlarınızı örteriz ve sizi güzel bir yere koyarız.",
     donation_support_message: "Cami faaliyetlerimizin devamı için bağışlarınız çok kıymetli.",
-    hijri: "13 Dhul Qadah 1447",
     islamic_community: "Islamic Community",
     millennium_centre: "Millennium Centre",
     next_prayer: "Sıradaki Namaz",

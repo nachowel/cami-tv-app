@@ -4,6 +4,7 @@ import {
 } from "./awqatSalahClient.ts";
 import { createAladhanProvider } from "./aladhanProvider.ts";
 import {
+  getAwqatGregorianIsoDate,
   mapAwqatToPrayerTimesDocument,
   type AwqatPrayerTimeDayInput,
 } from "./awqatPrayerTimeMapper.ts";
@@ -16,10 +17,21 @@ import { FIRESTORE_PATHS } from "../../src/shared/firestorePaths.ts";
 import { describePrayerTimesForLog, validatePrayerTimesCurrent } from "./prayerTimesValidation.ts";
 import { normalizePrayerTimesCurrent } from "../../src/utils/prayerTimeDocument.ts";
 import { applySuccessfulProviderSync } from "./prayerTimeSyncShared.ts";
+import { addIsoDateDays, getLondonIsoDate } from "../../src/utils/londonCalendar.ts";
 
 const LOCKED_CITY_ID = 14096;
 const LOCKED_COUNTRY_ID = 15;
 const LOCKED_PROVIDER_SOURCE = "awqat-salah";
+
+class AwqatDateValidationError extends Error {}
+
+function getValidatedAwqatGregorianDate(value: string, label: string) {
+  try {
+    return getAwqatGregorianIsoDate(value);
+  } catch {
+    throw new AwqatDateValidationError(`Awqat ${label} Gregorian date is invalid.`);
+  }
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
@@ -75,12 +87,40 @@ function getSinglePrayerTimeRecord(payload: unknown, label: string) {
   return toAwqatPrayerTimeDayInput(payload[0], label);
 }
 
-function getTomorrowPrayerTimeRecord(payload: unknown) {
+function getTomorrowPrayerTimeRecord(payload: unknown, expectedDate: string) {
   if (!Array.isArray(payload) || payload.length < 2) {
     throw new Error("Awqat weekly payload did not contain tomorrow's record.");
   }
 
-  return toAwqatPrayerTimeDayInput(payload[1], "weekly tomorrow");
+  const records = payload.map((value, index) =>
+    toAwqatPrayerTimeDayInput(value, `weekly item ${index}`));
+  const matchingRecord = records.find(
+    (record, index) => getValidatedAwqatGregorianDate(
+      record.gregorianDateLongIso8601,
+      `weekly item ${index}`,
+    ) === expectedDate,
+  );
+
+  if (matchingRecord) {
+    return matchingRecord;
+  }
+
+  const receivedDate = records[1]
+    ? getValidatedAwqatGregorianDate(records[1].gregorianDateLongIso8601, "tomorrow")
+    : "missing";
+  throw new AwqatDateValidationError(
+    `Awqat tomorrow Gregorian date mismatch: expected ${expectedDate}, received ${receivedDate}.`,
+  );
+}
+
+function assertAwqatDate(record: AwqatPrayerTimeDayInput, expectedDate: string, label: string) {
+  const receivedDate = getValidatedAwqatGregorianDate(record.gregorianDateLongIso8601, label);
+
+  if (receivedDate !== expectedDate) {
+    throw new AwqatDateValidationError(
+      `Awqat ${label} Gregorian date mismatch: expected ${expectedDate}, received ${receivedDate}.`,
+    );
+  }
 }
 
 interface FirestoreDocumentSnapshotLike {
@@ -162,8 +202,11 @@ export async function runProductionAwqatSalahSync({
     await client.login(credentials);
     const dailyPayload = await client.getDailyPrayerTimes(LOCKED_CITY_ID);
     const weeklyPayload = await client.getWeeklyPrayerTimes(LOCKED_CITY_ID);
+    const expectedTodayDate = getLondonIsoDate(executionTime);
+    const expectedTomorrowDate = addIsoDateDays(expectedTodayDate, 1);
     const today = getSinglePrayerTimeRecord(dailyPayload, "daily");
-    const tomorrow = getTomorrowPrayerTimeRecord(weeklyPayload);
+    assertAwqatDate(today, expectedTodayDate, "daily");
+    const tomorrow = getTomorrowPrayerTimeRecord(weeklyPayload, expectedTomorrowDate);
 
     const nextValue = mapAwqatToPrayerTimesDocument({
       current,
@@ -202,6 +245,11 @@ export async function runProductionAwqatSalahSync({
 
     return validatedValue;
   } catch (error) {
+    if (error instanceof AwqatDateValidationError) {
+      logError("Awqat Salah date validation failed.", error);
+      throw error;
+    }
+
     logError("Awqat Salah fetch failed. Falling back to Aladhan.", error);
 
     const runtimeOptions = readPrayerTimeSyncRuntimeOptions(env);

@@ -12,6 +12,11 @@ const prayerTimesPanelSource = readFileSync(
   "utf8",
 );
 
+const tvDisplayLayoutSource = readFileSync(
+  new URL("../src/components/tv/TvDisplayLayout.tsx", import.meta.url),
+  "utf8",
+);
+
 const donationDisplaySource = readFileSync(
   new URL("../src/routes/DonationDisplay.tsx", import.meta.url),
   "utf8",
@@ -29,30 +34,31 @@ test("donation config failure uses DEFAULT_DONATION_DISPLAY_CONFIG silently", ()
 
 test("prayer times failure after success keeps last known times", () => {
   assert.ok(tvDisplaySource.includes("lastSuccessfulPrayerTimes"), "expected lastSuccessfulPrayerTimes state");
-  assert.ok(prayerTimesPanelSource.includes("lastSuccessfulPrayerTimes"), "expected panel receives last known data");
-  assert.ok(prayerTimesPanelSource.includes("activePrayerTimes = hasLastKnown ? lastSuccessfulPrayerTimes : prayerTimes"), "expected activePrayerTimes fallback logic");
+  assert.ok(tvDisplayLayoutSource.includes("resolvedLastSuccessfulPrayerTimes"), "expected date-validated last known data");
+  assert.ok(tvDisplayLayoutSource.includes('prayerTimesStatus === "error"'), "expected error-only fallback selection");
 });
 
 test("prayer times failure before any success shows unavailable fallback", () => {
   assert.ok(prayerTimesPanelSource.includes("Prayer times temporarily unavailable"), "expected unavailable message");
-  assert.ok(prayerTimesPanelSource.includes("lastSuccessfulPrayerTimes == null"), "expected null check for last known data");
+  assert.ok(prayerTimesPanelSource.includes("if (!prayerTimes)"), "expected null prayer state check");
 });
 
 test("today's last known data is shown during error", () => {
-  assert.ok(prayerTimesPanelSource.includes("getLondonTodayIsoDate"), "expected London date helper");
-  assert.ok(prayerTimesPanelSource.includes("lastSuccessfulPrayerTimes.date !== getLondonTodayIsoDate()"), "expected stale date comparison");
+  assert.ok(tvDisplayLayoutSource.includes("resolvePrayerTimesForLondonDate"), "expected shared London date validation");
+  assert.ok(tvDisplayLayoutSource.includes("usingLastKnownPrayerTimes"), "expected validated last-known flag");
   assert.ok(prayerTimesPanelSource.includes("Prayer times may be temporarily outdated"), "expected outdated note for today's data");
 });
 
 test("yesterday's last known data is not shown as current", () => {
-  assert.ok(prayerTimesPanelSource.includes("isStale"), "expected stale flag");
+  assert.ok(tvDisplayLayoutSource.includes("resolvedLastSuccessfulPrayerTimes"), "expected last-known date resolution");
   assert.ok(prayerTimesPanelSource.includes("Prayer times need updating"), "expected stale fallback message");
   assert.ok(prayerTimesPanelSource.includes("Please check the admin sync."), "expected admin sync note");
 });
 
-test("stale fallback message appears for old data", () => {
-  assert.ok(prayerTimesPanelSource.includes("if (isStale)"), "expected stale conditional block");
-  assert.ok(!prayerTimesPanelSource.includes("Prayer times may be temporarily outdated") || prayerTimesPanelSource.includes("hasLastKnown ?"), "expected outdated note conditional");
+test("successful but stale Firestore data is resolved before prayer calculations", () => {
+  assert.ok(tvDisplayLayoutSource.includes("resolvedLivePrayerTimes"), "expected live date resolution");
+  assert.ok(tvDisplayLayoutSource.includes("activePrayerTimes\n    ? getCurrentAndNextPrayer"), "expected calculations only for resolved data");
+  assert.ok(tvDisplayLayoutSource.includes(": null;"), "expected unavailable derived state");
 });
 
 test("prayer times error fallback keeps layout stable (same container structure)", () => {

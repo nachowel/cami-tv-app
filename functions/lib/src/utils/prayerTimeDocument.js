@@ -61,7 +61,7 @@ function normalizeProviderSource(value, providerAlias) {
     return toCanonicalProviderSource(providerAlias);
 }
 export function getPrayerTimesUpdatedAt(value) {
-    return value.updatedAt ?? value.updated_at ?? value.fetchedAt;
+    return value.fetchedAt ?? value.updatedAt ?? value.updated_at;
 }
 function resolvePreferredAutomaticSource(current) {
     if (current.providerSource === "awqat-salah" || current.source === "awqat") {
@@ -144,7 +144,7 @@ export function normalizePrayerTimesCurrent(value, fallback) {
         automaticTimes,
     };
 }
-export function restoreEffectivePrayerTimesFromAutomatic(current, updatedAt) {
+export function restoreEffectivePrayerTimesFromAutomatic(current, _updatedAt) {
     if (!current.automaticTimes) {
         return {
             ...current,
@@ -158,8 +158,6 @@ export function restoreEffectivePrayerTimesFromAutomatic(current, updatedAt) {
         date: current.automaticTimes.date,
         today: current.automaticTimes.today,
         tomorrow: current.automaticTimes.tomorrow,
-        updated_at: updatedAt,
-        updatedAt,
         effectiveSource: restoredSource,
         provider: providerAlias,
         source: providerAlias,

@@ -37,7 +37,15 @@ function createFakeDb(initialValue: unknown) {
   };
 }
 
-function createMockFetch(): typeof fetch {
+function createMockFetch(options: {
+  dailyDate?: string;
+  weeklyTodayDate?: string;
+  weeklyTomorrowDate?: string;
+} = {}): typeof fetch {
+  const dailyDate = options.dailyDate ?? "2026-07-05T00:00:00+03:00";
+  const weeklyTodayDate = options.weeklyTodayDate ?? "2026-07-05T00:00:00+03:00";
+  const weeklyTomorrowDate = options.weeklyTomorrowDate ?? "2026-07-06T00:00:00+03:00";
+
   return (async (input, init) => {
     const url = String(input);
     const method = init?.method ?? "GET";
@@ -79,7 +87,7 @@ function createMockFetch(): typeof fetch {
               asr: "17:10",
               dhuhr: "13:02",
               fajr: "03:28",
-              gregorianDateLongIso8601: "2026-07-05T00:00:00+03:00",
+              gregorianDateLongIso8601: dailyDate,
               isha: "22:15",
               maghrib: "20:34",
               sunrise: "05:20",
@@ -109,7 +117,7 @@ function createMockFetch(): typeof fetch {
               asr: "17:10",
               dhuhr: "13:02",
               fajr: "03:28",
-              gregorianDateLongIso8601: "2026-07-05T00:00:00+03:00",
+              gregorianDateLongIso8601: weeklyTodayDate,
               isha: "22:15",
               maghrib: "20:34",
               sunrise: "05:20",
@@ -118,7 +126,7 @@ function createMockFetch(): typeof fetch {
               asr: "17:11",
               dhuhr: "13:03",
               fajr: "03:30",
-              gregorianDateLongIso8601: "2026-07-06T00:00:00+03:00",
+              gregorianDateLongIso8601: weeklyTomorrowDate,
               isha: "22:14",
               maghrib: "20:33",
               sunrise: "05:21",
@@ -283,6 +291,97 @@ test("production Awqat Salah sync writes to prayerTimes/current when source is a
   assert.doesNotMatch(logs.join("\n"), /fake-access-token/i, "no secrets in logs");
   assert.doesNotMatch(logs.join("\n"), /fake-session-cookie/i, "no cookies in logs");
   assert.doesNotMatch(logs.join("\n"), /test-password/i, "no secrets in logs");
+});
+
+test("production Awqat sync rejects a Gregorian daily date that is not London today without writing", async () => {
+  const logs: string[] = [];
+  const initial = {
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+  };
+  const { db, state } = createFakeDb(initial);
+  state.valueByPath["settings/prayerTimes"] = { source: "awqat-salah" };
+
+  await assert.rejects(
+    () => runProductionAwqatSalahSync({
+      db,
+      env: {
+        AWQAT_SALAH_USERNAME: "test-user",
+        AWQAT_SALAH_PASSWORD: "test-password",
+      },
+      fetchImpl: createMockFetch({
+        dailyDate: "2026-07-04T00:00:00+03:00",
+      }),
+      logError(message, error) {
+        logs.push(`${message}:${error instanceof Error ? error.message : String(error)}`);
+      },
+      logInfo(message) {
+        logs.push(message);
+      },
+      now: new Date("2026-07-05T00:01:00.000Z"),
+    }),
+    /daily Gregorian date mismatch.*expected 2026-07-05.*received 2026-07-04/i,
+  );
+
+  assert.equal(state.writes.length, 0);
+  assert.deepEqual(state.valueByPath["prayerTimes/current"], initial);
+  assert.ok(logs.some((message) => /date validation failed/i.test(message)));
+});
+
+test("production Awqat sync rejects a malformed Gregorian date without falling back or writing", async () => {
+  const initial = {
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+  };
+  const { db, state } = createFakeDb(initial);
+  state.valueByPath["settings/prayerTimes"] = { source: "awqat-salah" };
+
+  await assert.rejects(
+    () => runProductionAwqatSalahSync({
+      db,
+      env: {
+        AWQAT_SALAH_USERNAME: "test-user",
+        AWQAT_SALAH_PASSWORD: "test-password",
+      },
+      fetchImpl: createMockFetch({ dailyDate: "not-a-date" }),
+      logError() {},
+      logInfo() {},
+      now: new Date("2026-07-05T00:01:00.000Z"),
+    }),
+    /daily Gregorian date is invalid/i,
+  );
+
+  assert.equal(state.writes.length, 0);
+  assert.deepEqual(state.valueByPath["prayerTimes/current"], initial);
+});
+
+test("production Awqat sync rejects a weekly tomorrow date mismatch without writing", async () => {
+  const initial = {
+    ...mockDisplayData.prayerTimes,
+    manualOverride: false,
+  };
+  const { db, state } = createFakeDb(initial);
+  state.valueByPath["settings/prayerTimes"] = { source: "awqat-salah" };
+
+  await assert.rejects(
+    () => runProductionAwqatSalahSync({
+      db,
+      env: {
+        AWQAT_SALAH_USERNAME: "test-user",
+        AWQAT_SALAH_PASSWORD: "test-password",
+      },
+      fetchImpl: createMockFetch({
+        weeklyTomorrowDate: "2026-07-07T00:00:00+03:00",
+      }),
+      logError() {},
+      logInfo() {},
+      now: new Date("2026-07-05T00:01:00.000Z"),
+    }),
+    /tomorrow Gregorian date mismatch.*expected 2026-07-06.*received 2026-07-07/i,
+  );
+
+  assert.equal(state.writes.length, 0);
+  assert.deepEqual(state.valueByPath["prayerTimes/current"], initial);
 });
 
 test("production Awqat Salah sync falls back to aladhan and logs the awqat failure explicitly", async () => {

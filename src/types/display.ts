@@ -28,6 +28,7 @@ export type IsoDate = `${number}-${number}-${number}`;
 export type IsoDateTime = string;
 
 export type Time24Hour = `${number}:${number}`;
+export type HijriDateOffset = -1 | 0 | 1;
 
 export interface DisplaySettings {
   mosque_name: string;
@@ -35,6 +36,7 @@ export interface DisplaySettings {
   theme_mode: ThemeMode;
   auto_theme_start: Time24Hour;
   auto_theme_end: Time24Hour;
+  hijriDateOffset?: HijriDateOffset;
   updated_at: IsoDateTime;
 }
 

@@ -4,7 +4,10 @@ import type {
   PrayerTimesCurrent,
   PrayerTimesForDay,
 } from "../../types/display.ts";
-import { restoreEffectivePrayerTimesFromAutomatic } from "../../utils/prayerTimeDocument.ts";
+import {
+  getPrayerTimesUpdatedAt,
+  restoreEffectivePrayerTimesFromAutomatic,
+} from "../../utils/prayerTimeDocument.ts";
 
 const missingAutomaticTimesWarning =
   "Otomatik mod açıldı. Kayıtlı otomatik vakit henüz bulunmadığı için mevcut değerler korunuyor. Sonraki başarılı otomatik senkronda bu değerler uygulanacak.";
@@ -51,12 +54,8 @@ function isDisplayingManualPrayerTimes(current: PrayerTimesCurrent) {
   return current.manualOverride && current.effectiveSource === "manual";
 }
 
-function readPrayerTimesUpdatedAt(current: PrayerTimesCurrent) {
-  return current.updatedAt ?? current.updated_at ?? current.fetchedAt;
-}
-
 function isRecentAwqatSync(current: PrayerTimesCurrent, now: Date) {
-  const updatedAt = readPrayerTimesUpdatedAt(current);
+  const updatedAt = getPrayerTimesUpdatedAt(current);
 
   if (!updatedAt) {
     return false;

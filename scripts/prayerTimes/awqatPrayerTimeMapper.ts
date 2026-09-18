@@ -41,7 +41,7 @@ function normalizeAwqatPrayerTimesForDay(value: AwqatPrayerTimeDayInput): Prayer
   };
 }
 
-function normalizeAwqatGregorianDate(value: string): IsoDate {
+export function getAwqatGregorianIsoDate(value: string): IsoDate {
   const parsedDate = new Date(value);
 
   if (Number.isNaN(parsedDate.getTime())) {
@@ -62,7 +62,7 @@ function normalizeAwqatAutomaticSnapshot(
   tomorrow?: AwqatPrayerTimeDayInput | null,
 ) {
   return {
-    date: normalizeAwqatGregorianDate(today.gregorianDateLongIso8601),
+    date: getAwqatGregorianIsoDate(today.gregorianDateLongIso8601),
     today: normalizeAwqatPrayerTimesForDay(today),
     tomorrow: tomorrow ? normalizeAwqatPrayerTimesForDay(tomorrow) : null,
   };

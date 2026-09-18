@@ -84,6 +84,7 @@ test("awqat source with fresh updatedAt shows active sync instead of not impleme
       providerSource: "awqat-salah",
       updatedAt: "2026-07-05T01:00:00.000Z",
       updated_at: "2026-07-05T01:00:00.000Z",
+      fetchedAt: "2026-07-05T01:00:00.000Z",
     },
     new Date("2026-07-05T02:00:00.000Z"),
   );
@@ -91,6 +92,28 @@ test("awqat source with fresh updatedAt shows active sync instead of not impleme
   assert.equal(result.statusMessage, "Awqat Salah API sync active.");
   assert.equal(result.displayedPrayerTimesLabel, "Awqat Salah API");
   assert.doesNotMatch(result.statusMessage ?? "", /not implemented/i);
+});
+
+test("a recent admin update cannot make stale Awqat provider data look fresh", () => {
+  const result = getPrayerTimesAdminSourceSummary(
+    {
+      source: "awqat-salah",
+      updatedAt: "2026-09-18T18:00:30.631Z",
+    },
+    {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      effectiveSource: "awqat-salah",
+      providerSource: "awqat-salah",
+      fetchedAt: "2026-07-19T04:20:05.755Z",
+      updatedAt: "2026-09-18T18:00:30.631Z",
+      updated_at: "2026-09-18T18:00:30.631Z",
+    },
+    new Date("2026-09-18T18:05:00.000Z"),
+  );
+
+  assert.notEqual(result.statusMessage, "Awqat Salah API sync active.");
+  assert.equal(result.statusTone, "info");
 });
 
 test("manualOverride true shows a manual warning only when displayed times are manual", () => {
@@ -194,6 +217,9 @@ test("selecting Awqat source restores saved automatic Awqat times instead of onl
       providerSource: "awqat-salah",
       provider: "awqat",
       source: "awqat",
+      fetchedAt: "2026-07-05T00:10:00.000Z",
+      updatedAt: "2026-07-05T00:10:05.000Z",
+      updated_at: "2026-07-05T00:10:05.000Z",
       automaticTimes,
     },
     currentSettings: {
@@ -213,6 +239,8 @@ test("selecting Awqat source restores saved automatic Awqat times instead of onl
   assert.equal(result.nextPrayerTimesCurrent?.source, "awqat");
   assert.equal(result.nextPrayerTimesCurrent?.today.fajr, "03:28");
   assert.equal(result.nextPrayerTimesCurrent?.tomorrow?.fajr, "03:30");
+  assert.equal(result.nextPrayerTimesCurrent?.fetchedAt, "2026-07-05T00:10:00.000Z");
+  assert.equal(result.nextPrayerTimesCurrent?.updatedAt, "2026-07-05T00:10:05.000Z");
 });
 
 test("selecting Awqat source without saved automatic Awqat times only updates source settings", () => {
@@ -388,7 +416,8 @@ test("disableManualPrayerTimesOverride restores automaticTimes immediately when 
   assert.equal(result.nextValue.date, "2026-05-02");
   assert.equal(result.nextValue.today.fajr, "04:31");
   assert.equal(result.nextValue.tomorrow?.maghrib, "20:24");
-  assert.equal(result.nextValue.updated_at, "2026-05-02T12:05:00.000Z");
+  assert.equal(result.nextValue.fetchedAt, "2026-05-02T03:40:00.000Z");
+  assert.equal(result.nextValue.updated_at, mockDisplayData.prayerTimes.updated_at);
 });
 
 test("disableManualPrayerTimesOverride keeps current values and returns a warning when automaticTimes is missing", () => {

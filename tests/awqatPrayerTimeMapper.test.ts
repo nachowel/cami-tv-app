@@ -26,6 +26,26 @@ const awqatTomorrow = {
   gregorianDateLongIso8601: "2026-07-06T00:00:00+03:00",
 };
 
+const londonSeptember18 = {
+  fajr: "04:44",
+  sunrise: "06:33",
+  dhuhr: "13:00",
+  asr: "16:23",
+  maghrib: "19:17",
+  isha: "20:51",
+  gregorianDateLongIso8601: "2026-09-18T00:00:00+03:00",
+};
+
+const londonSeptember19 = {
+  fajr: "04:46",
+  sunrise: "06:34",
+  dhuhr: "12:59",
+  asr: "16:21",
+  maghrib: "19:15",
+  isha: "20:48",
+  gregorianDateLongIso8601: "2026-09-19T00:00:00+03:00",
+};
+
 
 
 const awqatWinterToday = {
@@ -247,4 +267,35 @@ test("Awqat mapper writes automaticTimes.tomorrow and top-level tomorrow when ne
   assert.equal(result.updatedAt, fetchedAt);
   assert.equal(result.automaticTimes?.tomorrow?.fajr, "03:30");
   assert.equal(result.tomorrow?.fajr, "03:30");
+});
+
+test("18 September 2026 London fixture maps every Awqat field without timezone shifting", () => {
+  const result = mapAwqatToPrayerTimesDocument({
+    current: {
+      ...mockDisplayData.prayerTimes,
+      manualOverride: false,
+      automaticTimes: null,
+    },
+    fetchedAt: "2026-09-18T00:10:00.000Z",
+    today: londonSeptember18,
+    tomorrow: londonSeptember19,
+  });
+
+  assert.equal(result.date, "2026-09-18");
+  assert.deepEqual(result.today, {
+    fajr: "04:44",
+    sunrise: "06:33",
+    dhuhr: "13:00",
+    asr: "16:23",
+    maghrib: "19:17",
+    isha: "20:51",
+  });
+  assert.deepEqual(result.tomorrow, {
+    fajr: "04:46",
+    sunrise: "06:34",
+    dhuhr: "12:59",
+    asr: "16:21",
+    maghrib: "19:15",
+    isha: "20:48",
+  });
 });
